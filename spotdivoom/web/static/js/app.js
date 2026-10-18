@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputCycleInterval = document.getElementById('inputCycleInterval');
   const selectWeatherUnit = document.getElementById('selectWeatherUnit');
   const selectTimeFormat = document.getElementById('selectTimeFormat');
+  const selectAlwaysShowHud = document.getElementById('selectAlwaysShowHud');
   const toastContainer = document.getElementById('toastContainer');
 
   // State
@@ -265,6 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         inputCycleInterval.value = data.settings.idle_cycle_interval || 30;
         selectWeatherUnit.value = data.settings.weather_unit || 'F';
         selectTimeFormat.value = data.settings.use_24h_time ? 'true' : 'false';
+        selectAlwaysShowHud.value = data.settings.always_show_hud === false ? 'false' : 'true';
 
         const boost = data.settings.enhance_contrast || 1.0;
         if (boost >= 1.25) document.getElementById('presetUltra').checked = true;
@@ -345,6 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
       idle_cycle_interval: parseFloat(inputCycleInterval.value),
       weather_unit: selectWeatherUnit.value,
       use_24h_time: selectTimeFormat.value === 'true',
+      always_show_hud: selectAlwaysShowHud.value === 'true',
       enhance_contrast: boostVal,
       enhance_color: boostVal,
     };
@@ -357,6 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       if (res.ok) {
         showToast('Preferences saved successfully!');
+        setTimeout(fetchMatrixFrame, 400);
       }
     } catch (err) {
       showToast('Failed to save settings.');

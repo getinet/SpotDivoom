@@ -230,6 +230,15 @@
               </select>
             </div>
 
+            <!-- Time & Weather Bar -->
+            <div class="form-group">
+              <label for="selectAlwaysShowHud" class="form-label">Time &amp; Weather Bar</label>
+              <select id="selectAlwaysShowHud" class="form-select">
+                <option value="true">Always Show (Over Album Art While Playing Too)</option>
+                <option value="false">Only on Idle Screen</option>
+              </select>
+            </div>
+
             <!-- Two-column settings -->
             <div class="form-grid-2">
               <div class="form-group">
@@ -292,11 +301,136 @@
         </div>
       </section>
     </main>
+
+    <!-- Listening Story: Spotify stats -->
+    <section class="glass-card story-card" id="storySection" aria-labelledby="storyTitle">
+      <div class="card-header">
+        <div class="card-title-group">
+          <h2 id="storyTitle">Your Listening Story</h2>
+          <span class="card-badge badge-cyan" id="storyUpdated">Loading…</span>
+        </div>
+        <button type="button" class="btn-micro" id="btnRefreshStats" title="Fetch fresh stats from Spotify">Refresh</button>
+      </div>
+
+      <div class="story-loading" id="storyLoading">Gathering your Spotify history…</div>
+      <div class="story-error" id="storyError" hidden></div>
+
+      <div class="story-body" id="storyBody" hidden>
+        <!-- Chapter 1: who you are -->
+        <div class="story-hero">
+          <img class="story-avatar" id="storyAvatar" alt="" hidden>
+          <div>
+            <p class="story-kicker" id="storyGreeting">Hi there</p>
+            <h3 class="story-persona" id="storyPersona">—</h3>
+            <p class="story-line" id="storyPersonaLine"></p>
+            <p class="story-line" id="storyTimeLine"></p>
+          </div>
+        </div>
+
+        <div class="story-notice" id="storyNotice" hidden></div>
+
+        <div class="stat-tile-grid" id="storyTiles"></div>
+
+        <!-- Chapter 2: favorites -->
+        <div class="story-chapter">
+          <div class="chapter-header">
+            <h3>Your favorites</h3>
+            <div class="render-toggle-group" role="group" aria-label="Time range">
+              <button type="button" class="toggle-btn active" data-term="short_term">4 weeks</button>
+              <button type="button" class="toggle-btn" data-term="medium_term">6 months</button>
+              <button type="button" class="toggle-btn" data-term="long_term">All time</button>
+            </div>
+          </div>
+          <div class="favorites-grid">
+            <div>
+              <h4 class="mini-heading">Top artists</h4>
+              <div class="artist-grid" id="storyArtists"></div>
+            </div>
+            <div>
+              <h4 class="mini-heading">Top tracks</h4>
+              <ol class="track-list" id="storyTracks"></ol>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chapter 3: how your taste is moving -->
+        <div class="story-chapter">
+          <div class="chapter-header"><h3>How your taste is moving</h3></div>
+          <div class="evolution-grid">
+            <div class="evolution-col">
+              <h4 class="mini-heading">New obsessions</h4>
+              <p class="chapter-hint">Top artists this month who aren't in your all-time list.</p>
+              <div class="chip-row" id="storyNewObsessions"></div>
+            </div>
+            <div class="evolution-col">
+              <h4 class="mini-heading">Ride or die</h4>
+              <p class="chapter-hint">In your top artists this month, this half-year and all time.</p>
+              <div class="chip-row" id="storyRideOrDie"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chapter 4: when you listen -->
+        <div class="story-chapter">
+          <div class="chapter-header">
+            <h3 id="clockTitle">When you listen</h3>
+          </div>
+          <p class="chapter-hint" id="clockHint"></p>
+          <div class="chart-grid">
+            <figure class="chart-figure">
+              <figcaption class="mini-heading" id="hourChartTitle">By hour of day</figcaption>
+              <div class="chart-box" id="hourChart"></div>
+            </figure>
+            <figure class="chart-figure">
+              <figcaption class="mini-heading" id="weekChartTitle">Day × hour</figcaption>
+              <div class="chart-box" id="weekChart"></div>
+            </figure>
+          </div>
+        </div>
+
+        <!-- Chapter 5: library and eras -->
+        <div class="story-chapter">
+          <div class="chart-grid">
+            <figure class="chart-figure">
+              <figcaption>
+                <h3>Your library, growing</h3>
+                <p class="chapter-hint" id="libraryHint"></p>
+              </figcaption>
+              <div class="chart-box" id="libraryChart"></div>
+            </figure>
+            <figure class="chart-figure">
+              <figcaption>
+                <h3>Your eras</h3>
+                <p class="chapter-hint" id="decadeHint"></p>
+              </figcaption>
+              <div class="chart-box" id="decadeChart"></div>
+            </figure>
+          </div>
+        </div>
+
+        <!-- Chapter 6: recent -->
+        <div class="story-chapter" id="recentChapter" hidden>
+          <div class="favorites-grid">
+            <div>
+              <h4 class="mini-heading">Recently played</h4>
+              <ol class="track-list" id="storyRecent"></ol>
+            </div>
+            <div id="onRepeatCol" hidden>
+              <h4 class="mini-heading">On repeat lately</h4>
+              <ol class="track-list" id="storyOnRepeat"></ol>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
+
+  <div class="chart-tooltip" id="chartTooltip" role="tooltip" hidden></div>
 
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
   <script src="/static/js/app.js"></script>
+  <script src="/static/js/stats.js"></script>
 </body>
 </html>

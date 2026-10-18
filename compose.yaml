@@ -1,0 +1,17 @@
+services:
+  spotdivoom:
+    build: .
+    image: spotdivoom:latest
+    # Rebuild from the source in this folder every time the stack is deployed
+    pull_policy: build
+    container_name: spotdivoom
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+    environment:
+      # Your local time zone, so the Pixoo clock is right
+      - TZ=America/Los_Angeles
+      - DATA_DIR=/app/data
+    volumes:
+      # Holds .env, .cache-spotify (your Spotify login) and listening_log.jsonl
+      - ./data:/app/data

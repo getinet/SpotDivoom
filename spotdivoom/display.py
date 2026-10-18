@@ -5,7 +5,19 @@ Display and image processing utilities for Divoom Pixoo 64.
 import datetime
 from typing import Optional
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont
-from .weather import WeatherInfo, draw_pixel_weather_icon
+from .weather import ICON_SIZE, WeatherInfo, draw_pixel_weather_icon
+
+
+def load_bold_font(size: int) -> ImageFont.ImageFont:
+    """
+    Returns a bold sans-serif font, trying macOS, Windows and Linux names in turn.
+    """
+    for name in ("Arial Bold.ttf", "arialbd.ttf", "LiberationSans-Bold.ttf", "DejaVuSans-Bold.ttf"):
+        try:
+            return ImageFont.truetype(name, size)
+        except OSError:
+            continue
+    return ImageFont.load_default(size=size)
 
 
 def process_image_for_pixoo(
@@ -83,6 +95,7 @@ def render_idle_cover_with_hud(
     use_24h: bool = False,
     contrast: float = 1.0,
     color: float = 1.0,
+    brightness: float = 0.88,
 ) -> Image.Image:
     """
     Overlays a sleek, semi-transparent HUD at the bottom of the album cover
@@ -93,7 +106,7 @@ def render_idle_cover_with_hud(
         cover_img,
         contrast=contrast,
         color=color,
-        brightness=0.88,
+        brightness=brightness,
     ).convert("RGBA")
 
     # 2. Overlay layer
@@ -108,7 +121,8 @@ def render_idle_cover_with_hud(
     # Subtle translucent highlight line
     draw.line([(0, 45), (63, 45)], fill=(255, 255, 255, 28))
 
-    font = ImageFont.load_default()
+    # Crisp, non-antialiased pixels read far better on the LED matrix
+    draw.fontmode = "1"
 
     # Time display
     now = datetime.datetime.now()
@@ -118,17 +132,32 @@ def render_idle_cover_with_hud(
         time_str = now.strftime("%I:%M").lstrip("0")
         if not time_str:
             time_str = "12:00"
+    temp_str = f"{weather.temperature}°" if weather is not None else ""
 
-    draw.text((3, 50), time_str, fill=(255, 255, 255, 255), font=font)
+    # Largest bold size where time + icon + temperature still fit on one row
+    size = 13
+    while True:
+        font = load_bold_font(size)
+        time_box = draw.textbbox((0, 0), time_str, font=font)
+        temp_box = draw.textbbox((0, 0), temp_str, font=font) if temp_str else (0, 0, 0, 0)
+        needed = (time_box[2] - time_box[0]) + (temp_box[2] - temp_box[0]) + (ICON_SIZE + 4 if temp_str else 0) + 4
+        if needed <= 64 or size <= 8:
+            break
+        size -= 1
+
+    # Vertically center text in the bar (y=46..63), with a dark outline for contrast
+    text_top = 46 + (18 - (time_box[3] - time_box[1])) // 2
+    outline = (0, 0, 0, 255)
+    draw.text((2 - time_box[0], text_top - time_box[1]), time_str, fill=(255, 255, 255, 255),
+              font=font, stroke_width=1, stroke_fill=outline)
 
     # Weather display
     if weather is not None:
-        temp_str = f"{weather.temperature}°"
-        tb = draw.textbbox((0, 0), temp_str, font=font)
-        tw = tb[2] - tb[0]
-        tx = 64 - tw - 2
-        draw.text((tx, 50), temp_str, fill=(255, 225, 115, 255), font=font)
-        draw_pixel_weather_icon(draw, tx - 9, 51, weather.weather_code, weather.is_day)
+        tx = 64 - (temp_box[2] - temp_box[0]) - 2
+        draw.text((tx - temp_box[0], text_top - time_box[1]), temp_str, fill=(255, 215, 90, 255),
+                  font=font, stroke_width=1, stroke_fill=outline)
+        draw_pixel_weather_icon(draw, tx - ICON_SIZE - 2, 46 + (18 - ICON_SIZE) // 2,
+                                weather.weather_code, weather.is_day)
 
     return Image.alpha_composite(base, overlay).convert("RGB")
 

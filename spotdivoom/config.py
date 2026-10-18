@@ -9,10 +9,14 @@ from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 
-# Find .env in project root or current working directory
-env_path = Path(__file__).resolve().parent.parent / ".env"
-if env_path.exists():
-    load_dotenv(dotenv_path=env_path)
+# Where .env, the Spotify login cache and the play log live.
+# Defaults to the project root; the Docker image points it at a mounted volume.
+DATA_DIR = Path(os.getenv("DATA_DIR") or Path(__file__).resolve().parent.parent)
+ENV_FILE = DATA_DIR / ".env"
+
+# Find .env in the data directory or current working directory
+if ENV_FILE.exists():
+    load_dotenv(dotenv_path=ENV_FILE)
 else:
     load_dotenv()
 
@@ -41,6 +45,8 @@ class Settings:
     idle_mode: str = os.getenv("IDLE_MODE", "liked_tracks").lower()
     idle_cycle_interval: float = float(os.getenv("IDLE_CYCLE_INTERVAL", "30.0"))
     use_24h_time: bool = os.getenv("USE_24H_TIME", "false").lower() in ("true", "1", "yes")
+    # Keep the time & weather bar on screen while a song is playing too, not just when idle
+    always_show_hud: bool = os.getenv("ALWAYS_SHOW_HUD", "true").lower() in ("true", "1", "yes")
 
     # Weather settings
     weather_unit: str = os.getenv("WEATHER_UNIT", "F").upper()  # 'F' or 'C'

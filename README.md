@@ -103,6 +103,41 @@ When you open `http://localhost:5050`, you have access to:
 
 ---
 
+## 🐳 Running in Docker (e.g. Dockge on Proxmox)
+
+The repo includes a `Dockerfile` and `compose.yaml`. Everything the container needs to keep
+(`.env`, your Spotify login in `.cache-spotify`, and `listening_log.jsonl`) lives in a `data/` folder next to `compose.yaml`.
+
+**1. Get the code onto the Docker host** (Dockge keeps stacks in `/opt/stacks` by default):
+
+```bash
+cd /opt/stacks
+git clone https://github.com/getinet/SpotDivoom.git spotdivoom
+mkdir -p spotdivoom/data
+```
+
+**2. Copy your settings and Spotify login** from a machine where SpotDivoom already runs.
+Spotify sign-in needs a browser, so authorize once on your computer (`python main.py`), then copy the files:
+
+```bash
+scp .env .cache-spotify root@<docker-host>:/opt/stacks/spotdivoom/data/
+```
+
+Set `PIXOO_IP` in `data/.env` so the container doesn't depend on auto-discovery.
+
+**3. Deploy:** in Dockge, use **Scan Stacks Folder**, open `spotdivoom`, set your `TZ` in the compose file, and click **Deploy**.
+The dashboard is at `http://<docker-host>:5050`.
+
+### Updating
+
+```bash
+cd /opt/stacks/spotdivoom
+git pull
+```
+
+Then click **Deploy** in Dockge (or run `docker compose up -d`). `pull_policy: build` makes it rebuild from the new code.
+Your `data/` folder is untouched, so settings, login and play history carry over.
+
 ## ⚙️ Configuration (`.env`)
 
 | Variable | Default | Description |
@@ -116,6 +151,7 @@ When you open `http://localhost:5050`, you have access to:
 | `IDLE_MODE` | `liked_tracks` | `liked_tracks` (cycle liked songs) or `spotify_logo` |
 | `IDLE_CYCLE_INTERVAL` | `30.0` | Seconds between cycling album covers in idle mode |
 | `USE_24H_TIME` | `false` | `false` for 12-hour clock, `true` for 24-hour |
+| `ALWAYS_SHOW_HUD` | `true` | Keep the time & weather bar over album art while playing |
 | `WEATHER_UNIT` | `F` | Temperature unit (`F` or `C`) |
 | `WEATHER_CITY` | Auto-detect | Optional manual city name override |
 | `ENHANCE_CONTRAST` | `1.0` | Contrast multiplier (`1.15` for punchier art) |
