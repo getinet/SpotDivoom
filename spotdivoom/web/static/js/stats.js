@@ -4,8 +4,28 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  const BAR = '#17b04e';        // Series green, validated for the dark card surface
-  const BAR_PEAK = '#1ED760';   // Brighter green for the single highlighted peak
+  // Chart colors come from the active look's CSS tokens (see themes.css)
+  let BAR, BAR_PEAK, HEAT_LOW, HEAT_HIGH, HEAT_EMPTY;
+  const colorProbe = document.createElement('span');
+  colorProbe.style.display = 'none';
+  document.body.appendChild(colorProbe);
+
+  function cssColor(token) {
+    colorProbe.style.color = `var(${token})`;
+    return getComputedStyle(colorProbe).color;
+  }
+
+  function rgbParts(color) {
+    return (color.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number);
+  }
+
+  function readChartColors() {
+    BAR = cssColor('--chart-bar');
+    BAR_PEAK = cssColor('--chart-peak');
+    HEAT_LOW = rgbParts(cssColor('--heat-low'));
+    HEAT_HIGH = rgbParts(cssColor('--heat-high'));
+    HEAT_EMPTY = cssColor('--heat-empty');
+  }
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   const el = (id) => document.getElementById(id);
@@ -167,8 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Sequential single-hue ramp: dark green (few) -> Spotify green (many); zero recedes to the surface
   function rampColor(t) {
-    const from = [22, 70, 42], to = [30, 215, 96];
-    const c = from.map((f, i) => Math.round(f + (to[i] - f) * t));
+    const c = HEAT_LOW.map((f, i) => Math.round(f + (HEAT_HIGH[i] - f) * t));
     return `rgb(${c.join(',')})`;
   }
 
@@ -188,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const x = padL + h * cell, y = padT + d * cell;
         const rect = svg('rect', {
           x: x + 1, y: y + 1, width: cell - 2, height: cell - 2, rx: 3,
-          fill: count ? rampColor(Math.sqrt(count / max)) : 'rgba(255,255,255,0.04)',
+          fill: count ? rampColor(Math.sqrt(count / max)) : HEAT_EMPTY,
         });
         bindTip(rect, `<strong>${DAYS[d]}, ${hourLabel(h)}</strong><br>${countLabel(count)}`);
         root.appendChild(rect);
@@ -316,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function render() {
+    readChartColors();
     const p = stats.personality;
     const l = stats.listening;
 
@@ -323,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
       el('storyAvatar').src = stats.profile.image;
       el('storyAvatar').hidden = false;
     }
-    el('storyGreeting').textContent = `${stats.profile.name}, you're a…`;
+    el('storyGreeting').textContent = `${String(stats.profile.name || '').trim().split(/\s+/)[0] || 'You'}, you're a…`;
     el('storyPersona').textContent = p.taste_label;
     el('storyPersonaLine').textContent = p.taste_line;
     if (p.time_label) {
@@ -356,13 +376,16 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadStats(refresh = false) {
     el('btnRefreshStats').disabled = true;
     try {
-      const status = await fetch('/api/status').then((r) => r.json()).catch(() => null);
+      // Status only supplies the 12/24-hour preference; fetch it alongside the stats
+      const [status, res] = await Promise.all([
+        fetch('/api/status').then((r) => r.json()).catch(() => null),
+        fetch(`/api/stats${refresh ? '?refresh=1' : ''}`),
+      ]);
       use24h = Boolean(status?.settings?.use_24h_time);
-
-      const res = await fetch(`/api/stats${refresh ? '?refresh=1' : ''}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not load stats.');
       stats = data;
+      document.dispatchEvent(new CustomEvent('spotdivoom:stats', { detail: data }));
       el('storyError').hidden = true;
       el('storyLoading').hidden = true;
       el('storyBody').hidden = false;
@@ -385,6 +408,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
   el('btnRefreshStats').addEventListener('click', () => loadStats(true));
+
+  // Redraw charts in the new look's colors
+  document.addEventListener('spotdivoom:theme', () => { if (stats) render(); });
 
   loadStats();
 });

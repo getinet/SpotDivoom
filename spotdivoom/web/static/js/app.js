@@ -251,9 +251,9 @@ document.addEventListener('DOMContentLoaded', () => {
         playbackBadgeText.textContent = 'Idle';
         equalizerBars.classList.remove('animating');
 
-        trackTitle.textContent = 'Ambient Mode';
-        trackArtist.textContent = 'Liked Songs Library';
-        trackAlbum.textContent = 'Local Clock & Weather Active';
+        trackTitle.textContent = 'Nothing playing';
+        trackArtist.textContent = 'Showing covers from your Liked Songs';
+        trackAlbum.textContent = 'with the time and weather';
         trackProgressFill.style.width = '0%';
         trackTimeElapsed.textContent = '0:00';
         trackTimeTotal.textContent = '0:00';

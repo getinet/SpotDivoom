@@ -1,0 +1,594 @@
+/* ==========================================================================
+   SpotDivoom 64 — Looks
+   Classic is defined in style.css. Each look below overrides the tokens and
+   restyles the record shelf, its one memorable element.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Shared: look picker and record shelf
+   -------------------------------------------------------------------------- */
+
+.look-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.look-picker .form-select {
+  width: auto;
+  padding: 6px 30px 6px 10px;
+}
+
+.record-shelf {
+  margin-bottom: 28px;
+}
+
+.shelf-caption {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  max-width: 70ch;
+}
+
+.shelf-row {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 4px 2px 10px;
+  scroll-snap-type: x proximity;
+}
+
+.shelf-item {
+  flex: 0 0 auto;
+  width: 112px;
+  color: var(--text-main);
+  text-decoration: none;
+  scroll-snap-align: start;
+}
+
+.shelf-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.shelf-art {
+  display: block;
+  position: relative;
+}
+
+.shelf-art img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.shelf-label {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  min-width: 0;
+}
+
+.shelf-track,
+.shelf-artist {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shelf-artist {
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   All personal looks: drop the generic dashboard chrome
+   -------------------------------------------------------------------------- */
+
+:root:not([data-theme="classic"]) .ambient-glow {
+  display: none;
+}
+
+:root:not([data-theme="classic"]) .glass-card,
+:root:not([data-theme="classic"]) .app-header {
+  background: var(--surface-solid);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+:root:not([data-theme="classic"]) .glass-card:hover {
+  border-color: transparent;
+}
+
+:root:not([data-theme="classic"]) .card-badge,
+:root:not([data-theme="classic"]) .stat-label,
+:root:not([data-theme="classic"]) .mini-heading {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+:root:not([data-theme="classic"]) .card-badge {
+  background: none;
+  border: none;
+  padding: 0;
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+:root:not([data-theme="classic"]) .mini-heading {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+:root:not([data-theme="classic"]) .brand-icon {
+  filter: none;
+}
+
+:root:not([data-theme="classic"]) .pill-dot {
+  box-shadow: none !important;
+  animation: none;
+}
+
+:root:not([data-theme="classic"]) .btn-primary {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+/* Weather reads as "64°F in Oakland" instead of emoji and dots */
+:root:not([data-theme="classic"]) #headerWeatherIcon,
+:root:not([data-theme="classic"]) .weather-pill .pill-divider {
+  display: none;
+}
+
+:root:not([data-theme="classic"]) #headerCity::before {
+  content: "in ";
+}
+
+/* --------------------------------------------------------------------------
+   actual life — Fred again..
+   A phone's notes app: plain system type, lowercase titles, a highlighter,
+   and your records laid out like a camera roll.
+   -------------------------------------------------------------------------- */
+
+:root[data-theme="actual-life"] {
+  --bg: #EDEFF2;
+  --surface-solid: #FFFFFF;
+  --ink: #000000;
+  --shade: #9AA3AF;
+
+  --accent: #2563EB;
+  --accent-hover: #1D4FD0;
+  --accent-strong: #1A47B8;
+  --accent-ink: #FFFFFF;
+  --accent-2: #2563EB;
+  --accent-3: #B98900;
+  --danger: #D92D20;
+  --danger-ink: #B42318;
+  --highlight: #FFE45C;
+
+  --text-main: #000000;
+  --text-muted: #555A62;
+  --text-dim: #6B7079;
+
+  --field-bg: #F4F5F7;
+  --field-border: #D6D9DE;
+  --track-bg: #E3E6EA;
+
+  --chart-bar: #2563EB;
+  --chart-peak: #1A47B8;
+  --heat-low: #8AA9F5;
+  --heat-high: #1A47B8;
+  --heat-empty: #EEF0F3;
+
+  --font-heading: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  color-scheme: light;
+}
+
+[data-theme="actual-life"] .brand-text h1,
+[data-theme="actual-life"] .card-title-group h2,
+[data-theme="actual-life"] .card-title-group h3,
+[data-theme="actual-life"] .story-chapter h3,
+[data-theme="actual-life"] .story-persona,
+[data-theme="actual-life"] .mini-heading,
+[data-theme="actual-life"] .stat-label,
+[data-theme="actual-life"] .shelf-caption {
+  text-transform: lowercase;
+}
+
+[data-theme="actual-life"] .brand-text h1 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="actual-life"] .card-title-group h2,
+[data-theme="actual-life"] .story-chapter h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+/* The highlighter: used on your listening personality and nothing else */
+[data-theme="actual-life"] .story-persona {
+  display: inline;
+  color: var(--text-main);
+  font-weight: 700;
+  background: linear-gradient(transparent 52%, var(--highlight) 52%, var(--highlight) 92%, transparent 92%);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0 2px;
+}
+
+[data-theme="actual-life"] .story-avatar {
+  border-color: var(--surface-solid);
+  box-shadow: 0 0 0 1px var(--field-border);
+}
+
+[data-theme="actual-life"] .stat-tile,
+[data-theme="actual-life"] .ambient-status-row,
+[data-theme="actual-life"] .story-loading,
+[data-theme="actual-life"] .story-notice,
+[data-theme="actual-life"] .story-error {
+  background: var(--field-bg);
+  border-color: transparent;
+}
+
+[data-theme="actual-life"] .tile-value {
+  font-weight: 600;
+}
+
+[data-theme="actual-life"] .status-pill {
+  background: var(--surface-solid);
+  border-color: transparent;
+}
+
+[data-theme="actual-life"] .record-shelf {
+  background: var(--surface-solid);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px 14px;
+}
+
+[data-theme="actual-life"] .shelf-caption {
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+/* Camera roll: square tiles, 2px gutters, no captions */
+[data-theme="actual-life"] .shelf-row {
+  gap: 2px;
+  padding: 0;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+[data-theme="actual-life"] .shelf-item {
+  width: 104px;
+}
+
+[data-theme="actual-life"] .shelf-art img {
+  border-radius: 0;
+}
+
+[data-theme="actual-life"] .shelf-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* --------------------------------------------------------------------------
+   Faded film — Boards of Canada
+   70s educational-film slides: faded sky, grain, Futura-style type, and your
+   records mounted as 35mm slides on a light table.
+   -------------------------------------------------------------------------- */
+
+:root[data-theme="faded-film"] {
+  --bg: #A7BFB8;
+  --surface-solid: #EFEADF;
+  --ink: #2E2A22;
+  --shade: #8C7B5E;
+
+  --accent: #008A78;
+  --accent-hover: #007A6A;
+  --accent-strong: #0F5C52;
+  --accent-ink: #F7F3EA;
+  --accent-2: #9A6B12;
+  --accent-3: #9A6B12;
+  --danger: #A8432F;
+  --danger-ink: #8F3423;
+
+  --text-main: #2E2A22;
+  --text-muted: #5A5346;
+  --text-dim: #6A6252;
+
+  --field-bg: #F7F3EA;
+  --field-border: #CFC6B3;
+  --track-bg: #DCD4C2;
+
+  --chart-bar: #008A78;
+  --chart-peak: #0F5C52;
+  --heat-low: #78AFA3;
+  --heat-high: #0F5C52;
+  --heat-empty: #E4DDCC;
+
+  --font-heading: 'Jost', 'Futura', sans-serif;
+  --font-body: 'Jost', 'Futura', sans-serif;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  color-scheme: light;
+}
+
+/* Film grain and a soft vignette over the whole page */
+[data-theme="faded-film"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .22  0 0 0 0 .18  0 0 0 0 .12  0 0 0 .5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    radial-gradient(ellipse at center, transparent 55%, rgba(60, 45, 25, 0.28) 100%);
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+}
+
+[data-theme="faded-film"] .brand-text h1,
+[data-theme="faded-film"] .card-title-group h2,
+[data-theme="faded-film"] .story-chapter h3 {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+[data-theme="faded-film"] .story-persona {
+  color: var(--accent-strong);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+[data-theme="faded-film"] .glass-card,
+[data-theme="faded-film"] .app-header {
+  box-shadow: 0 1px 2px rgba(60, 45, 25, 0.25);
+}
+
+[data-theme="faded-film"] .stat-tile,
+[data-theme="faded-film"] .ambient-status-row,
+[data-theme="faded-film"] .story-loading,
+[data-theme="faded-film"] .story-notice,
+[data-theme="faded-film"] .story-error,
+[data-theme="faded-film"] .status-pill {
+  background: var(--field-bg);
+  border-color: var(--field-border);
+}
+
+/* Every cover looks like it was printed in 1974 */
+[data-theme="faded-film"] .shelf-art img,
+[data-theme="faded-film"] .artist-card img,
+[data-theme="faded-film"] .track-row img,
+[data-theme="faded-film"] .artist-chip img,
+[data-theme="faded-film"] .album-art-img,
+[data-theme="faded-film"] .story-avatar {
+  filter: sepia(0.3) saturate(0.7) contrast(0.9) brightness(1.04);
+}
+
+/* 35mm slide mounts laid out on a light table */
+[data-theme="faded-film"] .shelf-caption {
+  color: var(--text-main);
+  font-size: 1.05rem;
+}
+
+[data-theme="faded-film"] .shelf-row {
+  gap: 18px;
+  padding: 8px 4px 16px;
+}
+
+[data-theme="faded-film"] .shelf-item {
+  width: 136px;
+  background: var(--surface-solid);
+  padding: 13px 13px 10px;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(60, 45, 25, 0.3), 0 6px 14px -8px rgba(60, 45, 25, 0.45);
+}
+
+[data-theme="faded-film"] .shelf-item:nth-child(3n + 1) { transform: rotate(-1.2deg); }
+[data-theme="faded-film"] .shelf-item:nth-child(3n + 2) { transform: rotate(0.8deg); }
+[data-theme="faded-film"] .shelf-item:nth-child(3n) { transform: rotate(-0.4deg); }
+
+[data-theme="faded-film"] .shelf-art img {
+  border-radius: 10px;
+}
+
+[data-theme="faded-film"] .shelf-label {
+  margin-top: 8px;
+  font-size: 0.72rem;
+}
+
+/* --------------------------------------------------------------------------
+   Could We Be More — Kokoroko
+   Indigo, saffron and palm green; chunky Bricolage type; your records as
+   vinyl on a wax-print cloth.
+   -------------------------------------------------------------------------- */
+
+:root[data-theme="could-we-be-more"] {
+  --bg: #1F2366;
+  --surface-solid: #262A78;
+  --ink: #FFF4DC;
+  --shade: #0B0C2A;
+
+  --accent: #E6B53A;
+  --accent-hover: #F0C452;
+  --accent-strong: #C2860A;
+  --accent-ink: #1F2366;
+  --accent-2: #3FA36B;
+  --accent-3: #E6B53A;
+  --danger: #F07167;
+  --danger-ink: #F59B93;
+  --palm: #2E8B57;
+
+  --text-main: #FFF4DC;
+  --text-muted: #CFC9E4;
+  --text-dim: #A9A5CB;
+
+  --field-bg: #1F2366;
+  --field-border: #3E4396;
+  --track-bg: #3A3F8F;
+
+  --chart-bar: #C2860A;
+  --chart-peak: #E6B53A;
+  --heat-low: #8C650C;
+  --heat-high: #E6B53A;
+
+  --font-heading: 'Bricolage Grotesque', sans-serif;
+  --font-body: 'Bricolage Grotesque', sans-serif;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+}
+
+[data-theme="could-we-be-more"] .brand-text h1,
+[data-theme="could-we-be-more"] .card-title-group h2,
+[data-theme="could-we-be-more"] .story-chapter h3 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="could-we-be-more"] .story-persona {
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 2.6rem;
+  letter-spacing: -0.03em;
+}
+
+[data-theme="could-we-be-more"] .tile-value {
+  font-weight: 800;
+}
+
+[data-theme="could-we-be-more"] .stat-tile,
+[data-theme="could-we-be-more"] .ambient-status-row,
+[data-theme="could-we-be-more"] .status-pill {
+  background: var(--bg);
+  border-color: transparent;
+}
+
+/* Wax-print cloth under the records */
+[data-theme="could-we-be-more"] .record-shelf {
+  padding: 22px 22px 18px;
+  border-radius: var(--radius-lg);
+  background-color: var(--palm);
+  background-image:
+    radial-gradient(circle, #E6B53A 0 5px, transparent 6px),
+    radial-gradient(circle, #1F2366 0 10px, transparent 11px),
+    radial-gradient(circle, #E6B53A 0 5px, transparent 6px),
+    radial-gradient(circle, #1F2366 0 10px, transparent 11px);
+  background-size: 32px 32px;
+  background-position: 0 0, 0 0, 16px 16px, 16px 16px;
+}
+
+[data-theme="could-we-be-more"] .shelf-caption {
+  display: inline-block;
+  background: var(--bg);
+  color: var(--text-main);
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+}
+
+[data-theme="could-we-be-more"] .shelf-item {
+  width: 124px;
+}
+
+[data-theme="could-we-be-more"] .shelf-art {
+  border-radius: 50%;
+  padding: 24px;
+  background: repeating-radial-gradient(circle, #121212 0 1.5px, #1F1F1F 1.5px 3px);
+  box-shadow: 0 4px 10px rgba(11, 12, 42, 0.5);
+  transition: transform 1.6s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+[data-theme="could-we-be-more"] .shelf-art img {
+  border-radius: 50%;
+}
+
+/* Spindle hole */
+[data-theme="could-we-be-more"] .shelf-art::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: var(--bg);
+}
+
+[data-theme="could-we-be-more"] .shelf-item:hover .shelf-art,
+[data-theme="could-we-be-more"] .shelf-item:focus-visible .shelf-art {
+  transform: rotate(200deg);
+}
+
+[data-theme="could-we-be-more"] .shelf-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="could-we-be-more"] .shelf-art {
+    transition: none;
+  }
+
+  [data-theme="could-we-be-more"] .shelf-item:hover .shelf-art,
+  [data-theme="could-we-be-more"] .shelf-item:focus-visible .shelf-art {
+    transform: none;
+  }
+}
+
+/* Late additions shared by the personal looks */
+:root:not([data-theme="classic"]) .playback-indicator-badge {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* actual life: a real camera-roll grid instead of a scrolling strip */
+[data-theme="actual-life"] .shelf-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  overflow: visible;
+}
+
+[data-theme="actual-life"] .shelf-item {
+  width: auto;
+}
+
+/* Keep visually-hidden labels anchored to their record, and theme the shelf scrollbar */
+.shelf-item {
+  position: relative;
+}
+
+.shelf-row {
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-main) 35%, transparent) transparent;
+}
+
+[data-theme="could-we-be-more"] .shelf-row {
+  scrollbar-color: var(--accent) transparent;
+}

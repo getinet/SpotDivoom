@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="faded-film">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +7,12 @@
   <meta name="description" content="Live control dashboard and pixel simulator for Divoom Pixoo 64 Spotify integration.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Jost:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/themes.css">
+  <script>
+    try { document.documentElement.dataset.theme = localStorage.getItem('spotdivoom-look') || 'faded-film'; } catch (e) {}
+  </script>
 </head>
 <body>
   <!-- Ambient background glow elements -->
@@ -27,7 +31,7 @@
         </div>
         <div class="brand-text">
           <h1>SpotDivoom <span class="badge-tag">64</span></h1>
-          <p class="brand-subtitle">Spotify Matrix Controller</p>
+          <p class="brand-subtitle" id="brandSubtitle">Spotify Matrix Controller</p>
         </div>
       </div>
 
@@ -51,8 +55,25 @@
           <span class="pill-dot status-dot" id="pixooStatusDot"></span>
           <span id="pixooStatusText">Connecting...</span>
         </div>
+
+        <!-- Look switcher -->
+        <label class="look-picker">
+          <span>Look</span>
+          <select id="lookSelect" class="form-select">
+            <option value="faded-film">Faded film (Boards of Canada)</option>
+            <option value="actual-life">actual life (Fred again..)</option>
+            <option value="could-we-be-more">Could We Be More (Kokoroko)</option>
+            <option value="classic">Classic</option>
+          </select>
+        </label>
       </div>
     </header>
+
+    <!-- Your top records, styled by the active look -->
+    <section class="record-shelf" id="recordShelf" aria-labelledby="shelfCaption" hidden>
+      <p class="shelf-caption" id="shelfCaption"></p>
+      <div class="shelf-row" id="shelfRow"></div>
+    </section>
 
     <!-- Main Grid Content -->
     <main class="dashboard-grid">
@@ -61,8 +82,7 @@
         <div class="glass-card simulator-card">
           <div class="card-header">
             <div class="card-title-group">
-              <h2>Display Simulator</h2>
-              <span class="card-badge" id="displayModeBadge">Live Mirror</span>
+              <h2>On your Pixoo</h2>
             </div>
             <!-- Render style toggle -->
             <div class="render-toggle-group">
@@ -78,7 +98,7 @@
               <canvas id="matrixCanvas" width="512" height="512"></canvas>
             </div>
             <div class="canvas-footer-meta">
-              <span>Resolution: <strong>64 × 64 Pixels</strong></span>
+              <span><strong>64 × 64</strong> pixels</span>
               <span id="canvasUpdateMeta">Updating live</span>
             </div>
           </div>
@@ -105,7 +125,7 @@
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
               </svg>
-              Clear Screen
+              Clear screen
             </button>
           </div>
         </div>
@@ -114,7 +134,7 @@
         <div class="glass-card hardware-card">
           <div class="card-header">
             <div class="card-title-group">
-              <h3>Hardware Brightness</h3>
+              <h3>Brightness</h3>
               <span class="value-highlight" id="brightnessValueDisplay">100%</span>
             </div>
           </div>
@@ -138,7 +158,7 @@
         <div class="glass-card now-playing-card" id="nowPlayingCard">
           <div class="card-header">
             <div class="card-title-group">
-              <h2>Now Playing</h2>
+              <h2>Now playing</h2>
               <div class="playback-indicator-badge" id="playbackBadge">
                 <span class="indicator-dot"></span>
                 <span id="playbackBadgeText">Idle</span>
@@ -181,14 +201,13 @@
         <div class="glass-card idle-hub-card">
           <div class="card-header">
             <div class="card-title-group">
-              <h2>Ambient Mode</h2>
-              <span class="card-badge badge-cyan">Liked Songs + HUD</span>
+              <h2>When nothing's playing</h2>
             </div>
             <button type="button" class="btn-micro" id="btnManualCycleCover">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
               </svg>
-              Next Cover
+              Next cover
             </button>
           </div>
 
@@ -204,7 +223,7 @@
               </div>
             </div>
             <p class="ambient-hint">
-              When music is stopped or paused, your Pixoo 64 seamlessly rotates covers from your Spotify Liked Songs, complete with live time and local weather.
+              When music stops, your Pixoo cycles through covers from your Liked Songs, with the time and weather along the bottom.
             </p>
           </div>
         </div>
@@ -213,8 +232,7 @@
         <div class="glass-card settings-card">
           <div class="card-header">
             <div class="card-title-group">
-              <h2>Preferences</h2>
-              <span class="card-badge">Instant Sync</span>
+              <h2>Settings</h2>
             </div>
           </div>
 
@@ -432,5 +450,6 @@
 
   <script src="/static/js/app.js"></script>
   <script src="/static/js/stats.js"></script>
+  <script src="/static/js/theme.js"></script>
 </body>
 </html>
