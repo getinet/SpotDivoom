@@ -10,10 +10,15 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from PIL import Image
 
+from .config import DATA_DIR
+
 import random
 import time
 
-SPOTIFY_SCOPES = "user-read-currently-playing user-read-playback-state user-library-read user-top-read"
+SPOTIFY_SCOPES = (
+    "user-read-currently-playing user-read-playback-state user-library-read user-top-read "
+    "user-read-recently-played"
+)
 
 
 @dataclass
@@ -42,7 +47,7 @@ class SpotifyWatcher:
         client_id: str,
         client_secret: str,
         redirect_uri: str = "http://127.0.0.1:8888/callback",
-        cache_path: str = ".cache-spotify",
+        cache_path: str = str(DATA_DIR / ".cache-spotify"),
     ):
         self.auth_manager = SpotifyOAuth(
             client_id=client_id,

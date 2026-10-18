@@ -11,7 +11,7 @@ from typing import Optional
 from flask import Flask, jsonify, render_template, request, send_file
 from PIL import Image
 
-from .config import settings
+from .config import ENV_FILE, settings
 from .display import (
     create_blank_image,
     create_spotify_idle_image,
@@ -20,6 +20,7 @@ from .display import (
 )
 from .pixoo import PixooClient
 from .spotify import SpotifyWatcher
+from .stats import get_stats
 from .weather import WeatherService
 
 web_dir = Path(__file__).resolve().parent / "web"
@@ -112,12 +113,27 @@ def api_status():
             "idle_mode": settings.idle_mode,
             "idle_cycle_interval": settings.idle_cycle_interval,
             "use_24h_time": settings.use_24h_time,
+            "always_show_hud": settings.always_show_hud,
             "weather_unit": settings.weather_unit,
             "enhance_contrast": settings.enhance_contrast,
             "enhance_color": settings.enhance_color,
             "poll_interval": settings.poll_interval,
         },
     })
+
+
+@app.route("/api/stats")
+def api_stats():
+    """
+    Returns listening statistics for the "Your Listening Story" section.
+    """
+    if not (current_app_instance and current_app_instance.spotify):
+        return jsonify({"error": "Spotify is not connected yet."}), 503
+    try:
+        stats = get_stats(current_app_instance.spotify.sp, force_refresh=request.args.get("refresh") == "1")
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({"error": f"Could not load Spotify stats: {e}"}), 502
 
 
 @app.route("/api/frame")
@@ -204,7 +220,7 @@ def api_clear():
 @app.route("/api/settings", methods=["POST"])
 def api_save_settings():
     data = request.get_json() or {}
-    env_file = Path(__file__).resolve().parent.parent / ".env"
+    env_file = ENV_FILE
 
     # Update in-memory settings
     if "on_pause" in data:
@@ -213,6 +229,8 @@ def api_save_settings():
         settings.idle_cycle_interval = float(data["idle_cycle_interval"])
     if "use_24h_time" in data:
         settings.use_24h_time = bool(data["use_24h_time"])
+    if "always_show_hud" in data:
+        settings.always_show_hud = bool(data["always_show_hud"])
     if "weather_unit" in data:
         settings.weather_unit = str(data["weather_unit"]).upper()
     if "enhance_contrast" in data:
@@ -228,6 +246,7 @@ def api_save_settings():
                 "ON_PAUSE": settings.on_pause,
                 "IDLE_CYCLE_INTERVAL": str(settings.idle_cycle_interval),
                 "USE_24H_TIME": "true" if settings.use_24h_time else "false",
+                "ALWAYS_SHOW_HUD": "true" if settings.always_show_hud else "false",
                 "WEATHER_UNIT": settings.weather_unit,
                 "ENHANCE_CONTRAST": str(settings.enhance_contrast),
                 "ENHANCE_COLOR": str(settings.enhance_color),
@@ -247,6 +266,14 @@ def api_save_settings():
                 if k not in seen_keys:
                     new_lines.append(f"{k}={v}")
             env_file.write_text("\n".join(new_lines) + "\n")
+        except Exception:
+            pass
+
+    # Redraw the now-playing frame right away so bar/clock changes show without waiting a minute
+    app_instance = current_app_instance
+    if app_instance and app_instance.last_is_playing and app_instance.current_raw_cover is not None:
+        try:
+            app_instance.send_track_frame()
         except Exception:
             pass
 

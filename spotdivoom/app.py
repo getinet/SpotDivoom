@@ -18,6 +18,7 @@ from .display import (
 )
 from .pixoo import PixooClient
 from .spotify import SpotifyWatcher, TrackInfo
+from .stats import record_play
 from .weather import WeatherService
 
 # ANSI styling helpers
@@ -67,6 +68,8 @@ class SpotDivoomApp:
         self.last_track_id: Optional[str] = None
         self.last_is_playing: Optional[bool] = None
         self.current_processed_img: Optional[Image.Image] = None
+        self.current_raw_cover: Optional[Image.Image] = None
+        self.last_hud_minute: int = -1
 
         # Idle screen tracking (cycling liked tracks + time + weather)
         self.current_idle_cover: Optional[Image.Image] = None
@@ -209,10 +212,55 @@ class SpotDivoomApp:
                 w_str = f" | {weather.temperature}{weather.unit} ({weather.city})" if weather else ""
                 print(f"{DIM}[• Idle Display]{RESET} {CYAN}{time_str}{RESET}{w_str} {DIM}| Cover: {self.current_idle_title}{RESET}")
 
+    def render_track_frame(self, brightness: float = 1.0) -> Image.Image:
+        """
+        Renders the current track's cover, with the time & weather bar when ALWAYS_SHOW_HUD is on.
+        """
+        if settings.always_show_hud:
+            weather = self.weather_service.get_weather() if self.weather_service else None
+            return render_idle_cover_with_hud(
+                self.current_raw_cover,
+                weather=weather,
+                use_24h=settings.use_24h_time,
+                contrast=settings.enhance_contrast,
+                color=settings.enhance_color,
+                brightness=brightness,
+            )
+        return process_image_for_pixoo(
+            self.current_raw_cover,
+            contrast=settings.enhance_contrast,
+            color=settings.enhance_color,
+            brightness=brightness,
+        )
+
+    def send_track_frame(self, brightness: float = 1.0) -> bool:
+        frame = self.render_track_frame(brightness)
+        if not self.pixoo.send_image(frame):
+            return False
+        self.last_hud_minute = datetime.datetime.now().minute
+        try:
+            from . import server
+            server.set_current_frame(frame)
+        except Exception:
+            pass
+        return True
+
+    def refresh_track_hud(self, brightness: float = 1.0):
+        """
+        Re-sends the track frame when the minute ticks so the clock over the album art stays current.
+        """
+        if (
+            settings.always_show_hud
+            and self.current_raw_cover is not None
+            and datetime.datetime.now().minute != self.last_hud_minute
+        ):
+            self.send_track_frame(brightness)
+
     def update_playback_display(self, img: Image.Image, track: TrackInfo):
         self.current_processed_img = img
         success = self.pixoo.send_image(img)
         if success:
+            self.last_hud_minute = datetime.datetime.now().minute
             try:
                 from . import server
                 server.set_current_frame(img)
@@ -242,23 +290,23 @@ class SpotDivoomApp:
                         self.last_track_id = track.track_id
                         self.last_is_playing = track.is_playing
                         self.current_idle_cover = None  # Reset idle cover for future
+                        record_play(track)
 
                         raw_img = self.spotify.fetch_image(track.image_url)
                         if raw_img:
-                            img = process_image_for_pixoo(
-                                raw_img,
-                                contrast=settings.enhance_contrast,
-                                color=settings.enhance_color,
-                                brightness=1.0,
-                            )
-                            self.update_playback_display(img, track)
+                            self.current_raw_cover = raw_img
+                            self.update_playback_display(self.render_track_frame(), track)
 
                     # Same track resumed from pause
                     elif not self.last_is_playing:
                         self.last_is_playing = True
                         print(f"{GREEN}[▶ Resumed]{RESET} {track.title}")
-                        if self.current_processed_img:
-                            self.pixoo.send_image(self.current_processed_img)
+                        if self.current_raw_cover is not None:
+                            self.send_track_frame()
+
+                    # Same track still playing: keep the clock current
+                    else:
+                        self.refresh_track_hud()
 
                 # State 2: Track is paused
                 elif track is not None and not track.is_playing:
@@ -266,21 +314,21 @@ class SpotDivoomApp:
                         self.last_is_playing = False
                         print(f"{YELLOW}[⏸ Paused]{RESET} {track.title}")
 
-                        if settings.on_pause == "dim" and self.current_processed_img:
-                            dimmed = process_image_for_pixoo(
-                                self.current_processed_img,
-                                brightness=settings.dim_factor,
-                            )
-                            self.pixoo.send_image(dimmed)
+                        if settings.on_pause == "dim" and self.current_raw_cover is not None:
+                            self.send_track_frame(brightness=settings.dim_factor)
                         elif settings.on_pause == "clear":
                             self.pixoo.clear()
                         elif settings.on_pause == "idle":
                             self.update_idle_display(force_new_cover=True)
                         # 'keep' leaves the current image as-is
 
-                    # If on_pause is 'idle', keep updating time/weather while paused
+                    # Keep updating time/weather while paused
                     if settings.on_pause == "idle":
                         self.update_idle_display()
+                    elif settings.on_pause in ("keep", "dim"):
+                        self.refresh_track_hud(
+                            brightness=settings.dim_factor if settings.on_pause == "dim" else 1.0
+                        )
 
                 # State 3: Nothing playing / Spotify closed (Idle)
                 else:

@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from typing import Optional
 import requests
-from PIL import ImageDraw
+from PIL import Image, ImageDraw
 
 
 @dataclass
@@ -97,49 +97,82 @@ class WeatherService:
         return self._cached_weather
 
 
+ICON_SIZE = 11
+
+
+def _draw_cloud(draw: ImageDraw.ImageDraw, x: int, y: int, fill: tuple):
+    """
+    Draws an 11x5 pixel cloud with its top-left at (x, y).
+    """
+    draw.rectangle([x + 3, y, x + 6, y], fill=fill)
+    draw.rectangle([x + 2, y + 1, x + 8, y + 1], fill=fill)
+    draw.rectangle([x + 1, y + 2, x + 9, y + 2], fill=fill)
+    draw.rectangle([x, y + 3, x + 10, y + 4], fill=fill)
+
+
 def draw_pixel_weather_icon(draw: ImageDraw.ImageDraw, x: int, y: int, code: int, is_day: bool = True):
     """
-    Renders a crisp 7x7 pixel art weather icon at top-left coordinate (x, y).
+    Renders a crisp 11x11 pixel art weather icon at top-left coordinate (x, y).
     """
+    sun_core, sun_ray = (255, 215, 0, 255), (255, 165, 0, 255)
+    moon = (225, 230, 245, 255)
+    cloud_light, cloud_grey, cloud_dark = (235, 235, 240, 255), (185, 190, 200, 255), (140, 145, 155, 255)
+
+    def draw_sun(sx: int, sy: int):
+        draw.ellipse([sx + 3, sy + 3, sx + 7, sy + 7], fill=sun_core)
+        draw.rectangle([sx + 5, sy, sx + 5, sy + 1], fill=sun_ray)
+        draw.rectangle([sx + 5, sy + 9, sx + 5, sy + 10], fill=sun_ray)
+        draw.rectangle([sx, sy + 5, sx + 1, sy + 5], fill=sun_ray)
+        draw.rectangle([sx + 9, sy + 5, sx + 10, sy + 5], fill=sun_ray)
+        draw.point([(sx + 1, sy + 1), (sx + 9, sy + 1), (sx + 1, sy + 9), (sx + 9, sy + 9)], fill=sun_ray)
+
     # Clear / Sunny / Starlit
     if code == 0:
         if is_day:
-            # Sun: 4x4 gold core with orange rays
-            draw.rectangle([x + 1, y + 1, x + 5, y + 5], fill=(255, 215, 0, 255))
-            draw.point([(x + 3, y), (x + 3, y + 6), (x, y + 3), (x + 6, y + 3)], fill=(255, 175, 0, 255))
+            draw_sun(x, y)
         else:
-            # Crescent Moon
-            draw.rectangle([x + 1, y + 1, x + 5, y + 5], fill=(225, 230, 245, 255))
-            draw.rectangle([x + 3, y + 1, x + 5, y + 5], fill=(15, 15, 20, 200))
+            # Crescent Moon: a disc with an offset disc cut out, so only the crescent is painted
+            mask = Image.new("1", (ICON_SIZE, ICON_SIZE), 0)
+            mask_draw = ImageDraw.Draw(mask)
+            mask_draw.ellipse([1, 1, 9, 9], fill=1)
+            mask_draw.ellipse([4, 0, 10, 6], fill=0)
+            draw.bitmap((x, y), mask, fill=moon)
 
     # Mainly clear / Partly cloudy
     elif code in (1, 2):
         if is_day:
-            # Sun peeking behind cloud
-            draw.point([(x, y + 1), (x + 1, y), (x + 2, y)], fill=(255, 200, 0, 255))
-        draw.rectangle([x + 1, y + 3, x + 6, y + 5], fill=(235, 235, 240, 255))
-        draw.rectangle([x + 2, y + 2, x + 5, y + 3], fill=(235, 235, 240, 255))
+            draw.ellipse([x + 5, y, x + 10, y + 5], fill=sun_core)
+        else:
+            draw.ellipse([x + 5, y, x + 10, y + 5], fill=moon)
+        _draw_cloud(draw, x, y + 5, cloud_light)
 
-    # Overcast / Fog
-    elif code in (3, 45, 48):
-        draw.rectangle([x + 1, y + 2, x + 6, y + 5], fill=(180, 185, 195, 255))
-        draw.rectangle([x + 2, y + 1, x + 5, y + 2], fill=(215, 220, 230, 255))
+    # Overcast
+    elif code == 3:
+        _draw_cloud(draw, x, y + 3, cloud_grey)
+        draw.rectangle([x + 3, y + 3, x + 6, y + 3], fill=cloud_light)
+
+    # Fog
+    elif code in (45, 48):
+        for row, inset in ((2, 0), (5, 1), (8, 0)):
+            draw.rectangle([x + 1 + inset, y + row, x + 9 + inset, y + row], fill=cloud_grey)
 
     # Rain / Drizzle / Showers
     elif code in (51, 53, 55, 61, 63, 65, 66, 67, 80, 81, 82):
-        draw.rectangle([x + 1, y + 1, x + 6, y + 3], fill=(185, 190, 200, 255))
-        draw.point([(x + 2, y + 5), (x + 4, y + 6), (x + 5, y + 5)], fill=(75, 190, 255, 255))
+        _draw_cloud(draw, x, y + 1, cloud_grey)
+        for dx, dy in ((2, 7), (5, 8), (8, 7)):
+            draw.rectangle([x + dx, y + dy, x + dx, y + dy + 1], fill=(75, 190, 255, 255))
 
     # Snow
     elif code in (71, 73, 75, 77, 85, 86):
-        draw.rectangle([x + 1, y + 1, x + 6, y + 3], fill=(185, 190, 200, 255))
-        draw.point([(x + 2, y + 5), (x + 4, y + 5), (x + 3, y + 6)], fill=(255, 255, 255, 255))
+        _draw_cloud(draw, x, y + 1, cloud_grey)
+        draw.point([(x + 2, y + 7), (x + 8, y + 7), (x + 5, y + 8), (x + 3, y + 10), (x + 7, y + 10)],
+                   fill=(255, 255, 255, 255))
 
     # Thunderstorm
     elif code in (95, 96, 99):
-        draw.rectangle([x + 1, y + 1, x + 6, y + 3], fill=(150, 155, 165, 255))
-        draw.point([(x + 3, y + 4), (x + 4, y + 5), (x + 3, y + 6)], fill=(255, 230, 40, 255))
+        _draw_cloud(draw, x, y + 1, cloud_dark)
+        draw.line([(x + 6, y + 6), (x + 4, y + 8), (x + 6, y + 8), (x + 4, y + 10)], fill=(255, 230, 40, 255))
 
     # Fallback generic
     else:
-        draw.rectangle([x + 1, y + 1, x + 5, y + 5], fill=(255, 210, 0, 255))
+        draw_sun(x, y)

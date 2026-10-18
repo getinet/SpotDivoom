@@ -15,6 +15,12 @@ __pycache__/
 .cache-spotify
 .cache-*
 
+# Local play history recorded for the stats dashboard
+listening_log.jsonl
+
 # System files
 .DS_Store
 Thumbs.db
+
+# Docker data volume (secrets + play log)
+data/
