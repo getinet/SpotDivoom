@@ -47,6 +47,8 @@ class Settings:
     use_24h_time: bool = os.getenv("USE_24H_TIME", "false").lower() in ("true", "1", "yes")
     # Keep the time & weather bar on screen while a song is playing too, not just when idle
     always_show_hud: bool = os.getenv("ALWAYS_SHOW_HUD", "true").lower() in ("true", "1", "yes")
+    # Where the time & weather bar sits on the screen: 'bottom' or 'top'
+    hud_position: str = "top" if os.getenv("HUD_POSITION", "bottom").strip().lower() == "top" else "bottom"
 
     # Weather settings
     weather_unit: str = os.getenv("WEATHER_UNIT", "F").upper()  # 'F' or 'C'

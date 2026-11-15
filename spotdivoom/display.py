@@ -96,11 +96,13 @@ def render_idle_cover_with_hud(
     contrast: float = 1.0,
     color: float = 1.0,
     brightness: float = 0.88,
+    position: str = "bottom",
 ) -> Image.Image:
     """
-    Overlays a sleek, semi-transparent HUD at the bottom of the album cover
+    Overlays a sleek, semi-transparent HUD at the bottom (or top) of the album cover
     displaying the local time (left) and current weather/temperature (right).
     """
+    at_top = position == "top"
     # 1. Base album art processing (slightly dim background for maximum HUD legibility)
     base = process_image_for_pixoo(
         cover_img,
@@ -113,13 +115,18 @@ def render_idle_cover_with_hud(
     overlay = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
 
-    # Gradient dark bar from y=45 to y=63
-    for y in range(45, 64):
-        alpha = int(225 * ((y - 44) / 19.0))
+    # 19-row gradient bar, darkest at the screen edge: y=45..63 (bottom) or y=0..18 (top)
+    for i in range(19):
+        alpha = int(225 * ((i + 1) / 19.0))
+        y = 18 - i if at_top else 45 + i
         draw.line([(0, y), (63, y)], fill=(6, 8, 12, alpha))
 
-    # Subtle translucent highlight line
-    draw.line([(0, 45), (63, 45)], fill=(255, 255, 255, 28))
+    # Subtle translucent highlight line on the edge facing the artwork
+    edge_y = 18 if at_top else 45
+    draw.line([(0, edge_y), (63, edge_y)], fill=(255, 255, 255, 28))
+
+    # 18-row text area inside the bar
+    area_top = 0 if at_top else 46
 
     # Crisp, non-antialiased pixels read far better on the LED matrix
     draw.fontmode = "1"
@@ -145,8 +152,8 @@ def render_idle_cover_with_hud(
             break
         size -= 1
 
-    # Vertically center text in the bar (y=46..63), with a dark outline for contrast
-    text_top = 46 + (18 - (time_box[3] - time_box[1])) // 2
+    # Vertically center text in the bar, with a dark outline for contrast
+    text_top = area_top + (18 - (time_box[3] - time_box[1])) // 2
     outline = (0, 0, 0, 255)
     draw.text((2 - time_box[0], text_top - time_box[1]), time_str, fill=(255, 255, 255, 255),
               font=font, stroke_width=1, stroke_fill=outline)
@@ -156,7 +163,7 @@ def render_idle_cover_with_hud(
         tx = 64 - (temp_box[2] - temp_box[0]) - 2
         draw.text((tx - temp_box[0], text_top - time_box[1]), temp_str, fill=(255, 215, 90, 255),
                   font=font, stroke_width=1, stroke_fill=outline)
-        draw_pixel_weather_icon(draw, tx - ICON_SIZE - 2, 46 + (18 - ICON_SIZE) // 2,
+        draw_pixel_weather_icon(draw, tx - ICON_SIZE - 2, area_top + (18 - ICON_SIZE) // 2,
                                 weather.weather_code, weather.is_day)
 
     return Image.alpha_composite(base, overlay).convert("RGB")

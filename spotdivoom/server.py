@@ -114,6 +114,7 @@ def api_status():
             "idle_cycle_interval": settings.idle_cycle_interval,
             "use_24h_time": settings.use_24h_time,
             "always_show_hud": settings.always_show_hud,
+            "hud_position": settings.hud_position,
             "weather_unit": settings.weather_unit,
             "enhance_contrast": settings.enhance_contrast,
             "enhance_color": settings.enhance_color,
@@ -196,7 +197,7 @@ def api_test_idle():
 
     ws = WeatherService(unit=settings.weather_unit)
     w = ws.get_weather()
-    frame = render_idle_cover_with_hud(create_spotify_idle_image(), weather=w)
+    frame = render_idle_cover_with_hud(create_spotify_idle_image(), weather=w, position=settings.hud_position)
     client = PixooClient(settings.pixoo_ip)
     ok = client.send_image(frame)
     if ok:
@@ -231,6 +232,8 @@ def api_save_settings():
         settings.use_24h_time = bool(data["use_24h_time"])
     if "always_show_hud" in data:
         settings.always_show_hud = bool(data["always_show_hud"])
+    if "hud_position" in data:
+        settings.hud_position = "top" if str(data["hud_position"]).lower() == "top" else "bottom"
     if "weather_unit" in data:
         settings.weather_unit = str(data["weather_unit"]).upper()
     if "enhance_contrast" in data:
@@ -247,6 +250,7 @@ def api_save_settings():
                 "IDLE_CYCLE_INTERVAL": str(settings.idle_cycle_interval),
                 "USE_24H_TIME": "true" if settings.use_24h_time else "false",
                 "ALWAYS_SHOW_HUD": "true" if settings.always_show_hud else "false",
+                "HUD_POSITION": settings.hud_position,
                 "WEATHER_UNIT": settings.weather_unit,
                 "ENHANCE_CONTRAST": str(settings.enhance_contrast),
                 "ENHANCE_COLOR": str(settings.enhance_color),
@@ -271,6 +275,9 @@ def api_save_settings():
 
     # Redraw the now-playing frame right away so bar/clock changes show without waiting a minute
     app_instance = current_app_instance
+    if app_instance:
+        # Idle screen: force a redraw on the daemon's next poll tick
+        app_instance.last_idle_minute = -1
     if app_instance and app_instance.last_is_playing and app_instance.current_raw_cover is not None:
         try:
             app_instance.send_track_frame()

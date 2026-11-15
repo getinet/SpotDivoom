@@ -158,7 +158,7 @@ class SpotDivoomApp:
     def update_idle_display(self, force_new_cover: bool = False):
         """
         Renders and sends the idle screen: cover of a liked track with
-        the current time and weather HUD at the bottom.
+        the current time and weather HUD (top or bottom, per HUD_POSITION).
         """
         now = time.time()
         now_dt = datetime.datetime.now()
@@ -198,6 +198,7 @@ class SpotDivoomApp:
                 use_24h=settings.use_24h_time,
                 contrast=settings.enhance_contrast,
                 color=settings.enhance_color,
+                position=settings.hud_position,
             )
             success = self.pixoo.send_image(hud_frame)
             if success:
@@ -225,6 +226,7 @@ class SpotDivoomApp:
                 contrast=settings.enhance_contrast,
                 color=settings.enhance_color,
                 brightness=brightness,
+                position=settings.hud_position,
             )
         return process_image_for_pixoo(
             self.current_raw_cover,

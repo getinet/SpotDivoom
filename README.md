@@ -152,6 +152,7 @@ Your `data/` folder is untouched, so settings, login and play history carry over
 | `IDLE_CYCLE_INTERVAL` | `30.0` | Seconds between cycling album covers in idle mode |
 | `USE_24H_TIME` | `false` | `false` for 12-hour clock, `true` for 24-hour |
 | `ALWAYS_SHOW_HUD` | `true` | Keep the time & weather bar over album art while playing |
+| `HUD_POSITION` | `bottom` | Where the time & weather bar sits: `bottom` or `top` |
 | `WEATHER_UNIT` | `F` | Temperature unit (`F` or `C`) |
 | `WEATHER_CITY` | Auto-detect | Optional manual city name override |
 | `ENHANCE_CONTRAST` | `1.0` | Contrast multiplier (`1.15` for punchier art) |

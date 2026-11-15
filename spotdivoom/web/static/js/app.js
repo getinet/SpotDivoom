@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectWeatherUnit = document.getElementById('selectWeatherUnit');
   const selectTimeFormat = document.getElementById('selectTimeFormat');
   const selectAlwaysShowHud = document.getElementById('selectAlwaysShowHud');
+  const selectHudPosition = document.getElementById('selectHudPosition');
   const toastContainer = document.getElementById('toastContainer');
 
   // State
@@ -267,6 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectWeatherUnit.value = data.settings.weather_unit || 'F';
         selectTimeFormat.value = data.settings.use_24h_time ? 'true' : 'false';
         selectAlwaysShowHud.value = data.settings.always_show_hud === false ? 'false' : 'true';
+        selectHudPosition.value = data.settings.hud_position === 'top' ? 'top' : 'bottom';
 
         const boost = data.settings.enhance_contrast || 1.0;
         if (boost >= 1.25) document.getElementById('presetUltra').checked = true;
@@ -348,6 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
       weather_unit: selectWeatherUnit.value,
       use_24h_time: selectTimeFormat.value === 'true',
       always_show_hud: selectAlwaysShowHud.value === 'true',
+      hud_position: selectHudPosition.value,
       enhance_contrast: boostVal,
       enhance_color: boostVal,
     };
