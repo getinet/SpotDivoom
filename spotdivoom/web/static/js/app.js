@@ -1,61 +1,74 @@
 /**
  * SpotDivoom 64 — Web Dashboard & Pixel Simulator
+ *
+ * Status arrives over a server-sent event stream (/api/events) whenever the daemon reports a
+ * change; if the stream drops, the page falls back to polling /api/status.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  const $ = (id) => document.getElementById(id);
+
   // Elements
-  const matrixCanvas = document.getElementById('matrixCanvas');
+  const matrixCanvas = $('matrixCanvas');
   const ctx = matrixCanvas.getContext('2d');
-  const btnModeLed = document.getElementById('btnModeLed');
-  const btnModeSmooth = document.getElementById('btnModeSmooth');
+  const btnModeLed = $('btnModeLed');
+  const btnModeSmooth = $('btnModeSmooth');
 
   // Header Elements
-  const headerWeatherIcon = document.getElementById('headerWeatherIcon');
-  const headerTemp = document.getElementById('headerTemp');
-  const headerCity = document.getElementById('headerCity');
-  const headerClock = document.getElementById('headerClock');
-  const pixooStatusDot = document.getElementById('pixooStatusDot');
-  const pixooStatusText = document.getElementById('pixooStatusText');
+  const headerWeatherIcon = $('headerWeatherIcon');
+  const headerTemp = $('headerTemp');
+  const headerCity = $('headerCity');
+  const headerClock = $('headerClock');
+  const pixooStatusDot = $('pixooStatusDot');
+  const pixooStatusText = $('pixooStatusText');
 
   // Hardware Elements
-  const brightnessSlider = document.getElementById('brightnessSlider');
-  const brightnessValueDisplay = document.getElementById('brightnessValueDisplay');
+  const brightnessSlider = $('brightnessSlider');
+  const brightnessValueDisplay = $('brightnessValueDisplay');
   const presetChips = document.querySelectorAll('.preset-chip');
-  const btnActionTestPattern = document.getElementById('btnActionTestPattern');
-  const btnActionTestIdle = document.getElementById('btnActionTestIdle');
-  const btnActionClear = document.getElementById('btnActionClear');
-  const btnManualCycleCover = document.getElementById('btnManualCycleCover');
 
   // Now Playing Elements
-  const playbackBadge = document.getElementById('playbackBadge');
-  const playbackBadgeText = document.getElementById('playbackBadgeText');
-  const equalizerBars = document.getElementById('equalizerBars');
-  const trackCoverImg = document.getElementById('trackCoverImg');
-  const trackTitle = document.getElementById('trackTitle');
-  const trackArtist = document.getElementById('trackArtist');
-  const trackAlbum = document.getElementById('trackAlbum');
-  const trackProgressFill = document.getElementById('trackProgressFill');
-  const trackTimeElapsed = document.getElementById('trackTimeElapsed');
-  const trackTimeTotal = document.getElementById('trackTimeTotal');
+  const playbackBadge = $('playbackBadge');
+  const playbackBadgeText = $('playbackBadgeText');
+  const equalizerBars = $('equalizerBars');
+  const trackCoverImg = $('trackCoverImg');
+  const trackTitle = $('trackTitle');
+  const trackArtist = $('trackArtist');
+  const trackAlbum = $('trackAlbum');
+  const trackProgressFill = $('trackProgressFill');
+  const trackTimeElapsed = $('trackTimeElapsed');
+  const trackTimeTotal = $('trackTimeTotal');
+  const btnPlayPause = $('btnPlayPause');
+  const btnPrev = $('btnPrev');
+  const btnNext = $('btnNext');
+  const btnLike = $('btnLike');
+  const spotifyNote = $('spotifyNote');
+
+  // Login
+  const loginCard = $('loginCard');
+  const loginOpenLink = $('loginOpenLink');
+  const loginPastedUrl = $('loginPastedUrl');
 
   // Ambient Elements
-  const idleCoverTitle = document.getElementById('idleCoverTitle');
-  const idleWeatherStat = document.getElementById('idleWeatherStat');
+  const idleCoverTitle = $('idleCoverTitle');
+  const idleWeatherStat = $('idleWeatherStat');
 
-  // Settings Form Elements
-  const settingsForm = document.getElementById('settingsForm');
-  const selectOnPause = document.getElementById('selectOnPause');
-  const inputCycleInterval = document.getElementById('inputCycleInterval');
-  const selectWeatherUnit = document.getElementById('selectWeatherUnit');
-  const selectTimeFormat = document.getElementById('selectTimeFormat');
-  const selectAlwaysShowHud = document.getElementById('selectAlwaysShowHud');
-  const selectHudPosition = document.getElementById('selectHudPosition');
-  const toastContainer = document.getElementById('toastContainer');
+  // Settings Form
+  const settingsForm = $('settingsForm');
+  const btnSaveSettings = $('btnSaveSettings');
+  let serverSettings = null;  // the app's current settings, from the latest status
+  let formDirty = false;      // true once the user edits the form, until they save
+  btnSaveSettings.disabled = true;  // enabled once the form shows the app's real settings
+  const toastContainer = $('toastContainer');
 
   // State
   let renderMode = 'led'; // 'led' or 'smooth'
   let isDraggingSlider = false;
-  let lastImageTimestamp = 0;
+  let lastFrameVersion = -1;
+  let lastStatusAt = 0;
+  let playback = null;        // last playback object from the server
+  let playbackAt = 0;         // when we received it (for local progress)
+  let loginUrlLoaded = false;
   const offscreenImg = new Image();
 
   // Helper: Toast Notifications
@@ -68,6 +81,17 @@ document.addEventListener('DOMContentLoaded', () => {
       toast.style.opacity = '0';
       setTimeout(() => toast.remove(), 300);
     }, 2800);
+  }
+
+  async function postJson(url, body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+    });
+    let data = {};
+    try { data = await res.json(); } catch (e) {}
+    return { ok: res.ok && data.success !== false, data };
   }
 
   // Format Milliseconds to M:SS
@@ -90,7 +114,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return '⛅';
   }
 
-  // Render Frame onto Matrix Canvas
+  // ---------- LED simulator ----------
+
   function drawMatrixFrame() {
     if (!offscreenImg.complete || offscreenImg.naturalWidth === 0) return;
 
@@ -129,7 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const cx = x * step + step / 2;
         const cy = y * step + step / 2;
 
-        // Circular diode
         ctx.beginPath();
         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
 
@@ -150,13 +174,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Refresh Matrix Canvas Frame from Server
   function fetchMatrixFrame() {
     offscreenImg.onload = () => drawMatrixFrame();
     offscreenImg.src = `/api/frame?t=${Date.now()}`;
   }
 
-  // Render Mode Toggle
   btnModeLed.addEventListener('click', () => {
     renderMode = 'led';
     btnModeLed.classList.add('active');
@@ -171,116 +193,214 @@ document.addEventListener('DOMContentLoaded', () => {
     drawMatrixFrame();
   });
 
-  // Fetch Full Dashboard Status
+  // ---------- Now playing ----------
+
+  function renderProgress() {
+    if (!playback) return;
+    let progress = playback.progress_ms || 0;
+    if (playback.is_playing) progress += Date.now() - playbackAt;
+    const total = playback.duration_ms || 0;
+    progress = total ? Math.min(progress, total) : progress;
+    trackProgressFill.style.width = total ? `${(progress / total) * 100}%` : '0%';
+    trackTimeElapsed.textContent = formatMs(progress);
+    trackTimeTotal.textContent = formatMs(total);
+  }
+
+  function renderPlayback(data) {
+    playback = data.playback && data.playback.title ? data.playback : null;
+    playbackAt = Date.now();
+    const playing = Boolean(playback && playback.is_playing);
+
+    if (playback) {
+      playbackBadge.className = `playback-indicator-badge ${playing ? 'playing' : 'paused'}`;
+      playbackBadgeText.textContent = playing ? 'Playing' : 'Paused';
+      equalizerBars.classList.toggle('animating', playing);
+      trackTitle.textContent = playback.title || 'Unknown Title';
+      trackArtist.textContent = playback.artist || 'Unknown Artist';
+      trackAlbum.textContent = playback.album || '';
+      if (playback.image_url && trackCoverImg.src !== playback.image_url) {
+        trackCoverImg.src = playback.image_url;
+      }
+      renderProgress();
+    } else {
+      playbackBadge.className = 'playback-indicator-badge';
+      playbackBadgeText.textContent = 'Idle';
+      equalizerBars.classList.remove('animating');
+      trackTitle.textContent = 'Nothing playing';
+      trackArtist.textContent = 'Showing covers from your Liked Songs';
+      trackAlbum.textContent = 'with the time and weather';
+      trackProgressFill.style.width = '0%';
+      trackTimeElapsed.textContent = '0:00';
+      trackTimeTotal.textContent = '0:00';
+    }
+
+    // Controls
+    const canControl = Boolean(data.daemon && data.spotify && data.spotify.authorized);
+    [btnPlayPause, btnPrev, btnNext].forEach((b) => { b.disabled = !canControl; });
+    $('iconPlay').hidden = playing;
+    $('iconPause').hidden = !playing;
+    btnPlayPause.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    btnPlayPause.title = playing ? 'Pause' : 'Play';
+
+    const liked = Boolean(playback && playback.liked);
+    btnLike.disabled = !canControl || !playback || playback.liked === null || playback.liked === undefined;
+    btnLike.setAttribute('aria-pressed', String(liked));
+    const likeLabel = liked ? 'Remove from Liked Songs' : 'Save to Liked Songs';
+    btnLike.title = likeLabel;
+    btnLike.setAttribute('aria-label', likeLabel);
+
+    // Notes: Spotify outage, night mode
+    const notes = [];
+    if (data.spotify && data.spotify.error) notes.push(data.spotify.error);
+    if (data.night && data.night.active) {
+      const labels = { dim: 'dimmed', clock: 'showing the night clock', screen_off: 'off' };
+      notes.push(`Night mode: the Pixoo is ${labels[data.night.mode] || 'in night mode'}.`);
+    }
+    spotifyNote.textContent = notes.join(' ');
+    spotifyNote.hidden = notes.length === 0;
+  }
+
+  setInterval(renderProgress, 1000);
+
+  async function sendControl(action) {
+    const { ok, data } = await postJson(`/api/playback/${action}`);
+    if (!ok) showToast(data.error || 'Spotify did not accept that.');
+    else if (action === 'like') showToast('Saved to Liked Songs');
+    else if (action === 'unlike') showToast('Removed from Liked Songs');
+  }
+
+  btnPlayPause.addEventListener('click', () => sendControl('toggle'));
+  btnPrev.addEventListener('click', () => sendControl('previous'));
+  btnNext.addEventListener('click', () => sendControl('next'));
+  btnLike.addEventListener('click', () => {
+    sendControl(btnLike.getAttribute('aria-pressed') === 'true' ? 'unlike' : 'like');
+  });
+
+  // ---------- Spotify login ----------
+
+  async function loadLoginUrl() {
+    if (loginUrlLoaded) return;
+    loginUrlLoaded = true;
+    try {
+      const res = await fetch('/api/auth/status');
+      const data = await res.json();
+      if (data.authorize_url) loginOpenLink.href = data.authorize_url;
+    } catch (e) {
+      loginUrlLoaded = false;
+    }
+  }
+
+  function renderLogin(data) {
+    const needsLogin = Boolean(data.spotify && !data.spotify.authorized);
+    loginCard.hidden = !needsLogin;
+    if (needsLogin) loadLoginUrl();
+  }
+
+  $('btnLoginComplete').addEventListener('click', async () => {
+    const url = loginPastedUrl.value.trim();
+    if (!url) {
+      showToast('Paste the address from the page Spotify sent you to.');
+      loginPastedUrl.focus();
+      return;
+    }
+    const { ok, data } = await postJson('/api/auth/complete', { url });
+    if (!ok) {
+      showToast(data.error || 'Login failed. Open the login link again and paste the new address.');
+      loginUrlLoaded = false;
+      return;
+    }
+    loginPastedUrl.value = '';
+    loginCard.hidden = true;
+    showToast('Logged in to Spotify');
+    document.dispatchEvent(new CustomEvent('spotdivoom:login'));
+    fetchStatus();
+  });
+
+  // ---------- Status ----------
+
+  function applyStatus(data) {
+    lastStatusAt = Date.now();
+
+    // 1. Header Clock & Weather
+    if (data.idle) {
+      if (data.idle.time) headerClock.textContent = data.idle.time;
+      if (data.idle.weather) {
+        const w = data.idle.weather;
+        headerWeatherIcon.textContent = getWeatherIcon(w.weather_code, w.is_day);
+        headerTemp.textContent = `${w.temperature}${w.unit}`;
+        headerCity.textContent = w.city || 'Local Weather';
+        idleWeatherStat.textContent = `${w.temperature}${w.unit} in ${w.city || 'Local'}`;
+      }
+      if (data.idle.current_cover_title) {
+        idleCoverTitle.textContent = data.idle.current_cover_title;
+      }
+    }
+
+    // 2. Hardware Connectivity
+    if (data.pixoo) {
+      const night = data.night && data.night.active ? ' • Night' : '';
+      pixooStatusDot.className = `pill-dot status-dot ${data.pixoo.connected ? 'online' : 'offline'}`;
+      pixooStatusText.textContent = `${data.pixoo.connected ? 'Online' : 'Offline'} • ${data.pixoo.ip || 'No IP'}${night}`;
+
+      if (!isDraggingSlider && data.pixoo.brightness !== undefined) {
+        brightnessSlider.value = data.pixoo.brightness;
+        brightnessValueDisplay.textContent = `${data.pixoo.brightness}%`;
+        presetChips.forEach((chip) => {
+          chip.classList.toggle('active', parseInt(chip.dataset.val, 10) === data.pixoo.brightness);
+        });
+      }
+    }
+
+    // 3. Playback card, login
+    renderPlayback(data);
+    renderLogin(data);
+
+    // 4. Simulator: refetch only when the frame changed
+    if (data.frame_version !== undefined && data.frame_version !== lastFrameVersion) {
+      lastFrameVersion = data.frame_version;
+      fetchMatrixFrame();
+    }
+
+    // 5. Keep the settings form in step with the app until the user starts editing it
+    if (data.settings) {
+      serverSettings = data.settings;
+      if (!formDirty) {
+        populateSettings(data.settings);
+        btnSaveSettings.disabled = false;
+      }
+    }
+  }
+
   async function fetchStatus() {
     try {
       const res = await fetch('/api/status');
-      if (!res.ok) return;
-      const data = await res.json();
-
-      // 1. Header Clock & Weather
-      if (data.idle) {
-        if (data.idle.time) headerClock.textContent = data.idle.time;
-        if (data.idle.weather) {
-          const w = data.idle.weather;
-          headerWeatherIcon.textContent = getWeatherIcon(w.weather_code, w.is_day);
-          headerTemp.textContent = `${w.temperature}${w.unit}`;
-          headerCity.textContent = w.city || 'Local Weather';
-          idleWeatherStat.textContent = `${w.temperature}${w.unit} in ${w.city || 'Local'}`;
-        }
-        if (data.idle.current_cover_title) {
-          idleCoverTitle.textContent = data.idle.current_cover_title;
-        }
-      }
-
-      // 2. Hardware Connectivity
-      if (data.pixoo) {
-        if (data.pixoo.connected) {
-          pixooStatusDot.className = 'pill-dot status-dot online';
-          pixooStatusText.textContent = `Online • ${data.pixoo.ip}`;
-        } else {
-          pixooStatusDot.className = 'pill-dot status-dot offline';
-          pixooStatusText.textContent = `Offline • ${data.pixoo.ip}`;
-        }
-
-        if (!isDraggingSlider && data.pixoo.brightness !== undefined) {
-          brightnessSlider.value = data.pixoo.brightness;
-          brightnessValueDisplay.textContent = `${data.pixoo.brightness}%`;
-          presetChips.forEach(chip => {
-            chip.classList.toggle('active', parseInt(chip.dataset.val) === data.pixoo.brightness);
-          });
-        }
-      }
-
-      // 3. Playback Card
-      if (data.playback && data.playback.is_playing) {
-        playbackBadge.className = 'playback-indicator-badge playing';
-        playbackBadgeText.textContent = 'Playing';
-        equalizerBars.classList.add('animating');
-
-        trackTitle.textContent = data.playback.title || 'Unknown Title';
-        trackArtist.textContent = data.playback.artist || 'Unknown Artist';
-        trackAlbum.textContent = data.playback.album || '';
-
-        if (data.playback.image_url && trackCoverImg.src !== data.playback.image_url) {
-          trackCoverImg.src = data.playback.image_url;
-        }
-
-        const progress = data.playback.progress_ms || 0;
-        const total = data.playback.duration_ms || 1;
-        const pct = Math.min(100, Math.max(0, (progress / total) * 100));
-        trackProgressFill.style.width = `${pct}%`;
-        trackTimeElapsed.textContent = formatMs(progress);
-        trackTimeTotal.textContent = formatMs(total);
-      } else if (data.playback && !data.playback.is_playing && data.playback.title) {
-        playbackBadge.className = 'playback-indicator-badge paused';
-        playbackBadgeText.textContent = 'Paused';
-        equalizerBars.classList.remove('animating');
-
-        trackTitle.textContent = data.playback.title;
-        trackArtist.textContent = data.playback.artist;
-        trackAlbum.textContent = data.playback.album;
-        if (data.playback.image_url) trackCoverImg.src = data.playback.image_url;
-
-        const progress = data.playback.progress_ms || 0;
-        const total = data.playback.duration_ms || 1;
-        trackProgressFill.style.width = `${Math.min(100, (progress / total) * 100)}%`;
-        trackTimeElapsed.textContent = formatMs(progress);
-        trackTimeTotal.textContent = formatMs(total);
-      } else {
-        playbackBadge.className = 'playback-indicator-badge';
-        playbackBadgeText.textContent = 'Idle';
-        equalizerBars.classList.remove('animating');
-
-        trackTitle.textContent = 'Nothing playing';
-        trackArtist.textContent = 'Showing covers from your Liked Songs';
-        trackAlbum.textContent = 'with the time and weather';
-        trackProgressFill.style.width = '0%';
-        trackTimeElapsed.textContent = '0:00';
-        trackTimeTotal.textContent = '0:00';
-      }
-
-      // 4. Populate Settings Form (only once on load)
-      if (data.settings && !settingsForm.dataset.initialized) {
-        settingsForm.dataset.initialized = 'true';
-        selectOnPause.value = data.settings.on_pause || 'idle';
-        inputCycleInterval.value = data.settings.idle_cycle_interval || 30;
-        selectWeatherUnit.value = data.settings.weather_unit || 'F';
-        selectTimeFormat.value = data.settings.use_24h_time ? 'true' : 'false';
-        selectAlwaysShowHud.value = data.settings.always_show_hud === false ? 'false' : 'true';
-        selectHudPosition.value = data.settings.hud_position === 'top' ? 'top' : 'bottom';
-
-        const boost = data.settings.enhance_contrast || 1.0;
-        if (boost >= 1.25) document.getElementById('presetUltra').checked = true;
-        else if (boost >= 1.1) document.getElementById('presetPunchy').checked = true;
-        else document.getElementById('presetNormal').checked = true;
-      }
+      if (res.ok) applyStatus(await res.json());
     } catch (e) {
       console.warn('Status poll error:', e);
     }
   }
 
-  // Brightness Control
+  function connectStream() {
+    if (!window.EventSource) return;
+    const source = new EventSource('/api/events');
+    source.onmessage = (event) => {
+      try { applyStatus(JSON.parse(event.data)); } catch (e) {}
+    };
+    // EventSource reconnects on its own; the watchdog below polls in the meantime
+  }
+
+  // Watchdog: the stream sends at least every 20s, so poll if it has gone quiet
+  setInterval(() => {
+    if (Date.now() - lastStatusAt > 25000) fetchStatus();
+  }, 5000);
+
+  // ---------- Brightness ----------
+
+  async function setBrightness(val) {
+    const { ok } = await postJson('/api/control/brightness', { brightness: val });
+    showToast(ok ? `Brightness set to ${val}%` : 'Could not reach the Pixoo.');
+  }
+
   brightnessSlider.addEventListener('input', (e) => {
     isDraggingSlider = true;
     brightnessValueDisplay.textContent = `${e.target.value}%`;
@@ -288,92 +408,124 @@ document.addEventListener('DOMContentLoaded', () => {
 
   brightnessSlider.addEventListener('change', async (e) => {
     isDraggingSlider = false;
-    const val = parseInt(e.target.value);
-    await fetch('/api/control/brightness', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brightness: val }),
-    });
-    showToast(`Brightness set to ${val}%`);
+    await setBrightness(parseInt(e.target.value, 10));
   });
 
-  presetChips.forEach(chip => {
+  presetChips.forEach((chip) => {
     chip.addEventListener('click', async () => {
-      const val = parseInt(chip.dataset.val);
+      const val = parseInt(chip.dataset.val, 10);
       brightnessSlider.value = val;
       brightnessValueDisplay.textContent = `${val}%`;
-      presetChips.forEach(c => c.classList.remove('active'));
+      presetChips.forEach((c) => c.classList.remove('active'));
       chip.classList.add('active');
-
-      await fetch('/api/control/brightness', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brightness: val }),
-      });
-      showToast(`Brightness set to ${val}%`);
+      await setBrightness(val);
     });
   });
 
-  // Action Buttons
-  btnActionTestPattern.addEventListener('click', async () => {
+  // ---------- Action buttons ----------
+
+  $('btnActionTestPattern').addEventListener('click', async () => {
     showToast('Sending test graphic...');
     await fetch('/api/control/test-pixoo', { method: 'POST' });
-    fetchMatrixFrame();
   });
 
-  btnActionTestIdle.addEventListener('click', async () => {
-    showToast('Pushing Idle HUD (Cover + Clock + Weather)...');
+  $('btnActionTestIdle').addEventListener('click', async () => {
+    showToast('Pushing idle screen...');
     await fetch('/api/control/test-idle', { method: 'POST' });
-    fetchMatrixFrame();
   });
 
-  btnActionClear.addEventListener('click', async () => {
+  $('btnActionClear').addEventListener('click', async () => {
     showToast('Clearing display...');
     await fetch('/api/control/clear', { method: 'POST' });
-    fetchMatrixFrame();
   });
 
-  btnManualCycleCover.addEventListener('click', async () => {
-    showToast('Rotating to next liked track...');
+  $('btnManualCycleCover').addEventListener('click', async () => {
+    showToast('Showing the next idle screen...');
     await fetch('/api/control/cycle', { method: 'POST' });
-    setTimeout(fetchMatrixFrame, 400);
   });
 
-  // Save Settings Form
+  // ---------- Settings ----------
+
+  const boolSelects = {
+    use_24h_time: 'selectTimeFormat',
+    always_show_hud: 'selectAlwaysShowHud',
+    hud_accent: 'selectHudAccent',
+    show_progress: 'selectShowProgress',
+    show_title: 'selectShowTitle',
+  };
+  const valueFields = {
+    on_pause: 'selectOnPause',
+    hud_position: 'selectHudPosition',
+    weather_unit: 'selectWeatherUnit',
+    idle_transition: 'selectIdleTransition',
+    night_mode: 'selectNightMode',
+    night_start: 'inputNightStart',
+    night_end: 'inputNightEnd',
+    idle_cycle_interval: 'inputCycleInterval',
+    night_brightness: 'inputNightBrightness',
+  };
+
+  function populateSettings(s) {
+    Object.entries(boolSelects).forEach(([key, id]) => {
+      if (s[key] !== undefined) $(id).value = s[key] ? 'true' : 'false';
+    });
+    Object.entries(valueFields).forEach(([key, id]) => {
+      if (s[key] !== undefined && s[key] !== null) $(id).value = s[key];
+    });
+    const screens = String(s.idle_screens || 'cover').split(',');
+    $('idleScreenCover').checked = screens.includes('cover');
+    $('idleScreenForecast').checked = screens.includes('forecast');
+
+    const boost = s.enhance_contrast || 1.0;
+    if (boost >= 1.25) $('presetUltra').checked = true;
+    else if (boost >= 1.1) $('presetPunchy').checked = true;
+    else $('presetNormal').checked = true;
+  }
+
+  settingsForm.addEventListener('input', () => { formDirty = true; });
+  settingsForm.addEventListener('change', () => { formDirty = true; });
+
   settingsForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const boostVal = parseFloat(document.querySelector('input[name="enhancementPreset"]:checked').value);
+    const screens = ['idleScreenCover', 'idleScreenForecast'].filter((id) => $(id).checked).map((id) => $(id).value);
+    if (!screens.length) {
+      showToast('Pick at least one idle screen.');
+      return;
+    }
 
-    const payload = {
-      on_pause: selectOnPause.value,
-      idle_cycle_interval: parseFloat(inputCycleInterval.value),
-      weather_unit: selectWeatherUnit.value,
-      use_24h_time: selectTimeFormat.value === 'true',
-      always_show_hud: selectAlwaysShowHud.value === 'true',
-      hud_position: selectHudPosition.value,
-      enhance_contrast: boostVal,
-      enhance_color: boostVal,
-    };
+    const form = { enhance_contrast: boostVal, enhance_color: boostVal, idle_screens: screens.join(',') };
+    Object.entries(boolSelects).forEach(([key, id]) => { form[key] = $(id).value === 'true'; });
+    Object.entries(valueFields).forEach(([key, id]) => { form[key] = $(id).value; });
+
+    // Send only what differs from the app, so a stale field can never overwrite a setting
+    const payload = {};
+    Object.entries(form).forEach(([key, value]) => {
+      if (!serverSettings || String(value) !== String(serverSettings[key])) payload[key] = value;
+    });
+    if (!Object.keys(payload).length) {
+      formDirty = false;
+      showToast('Nothing to save; these are already your settings.');
+      return;
+    }
 
     try {
-      const res = await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        showToast('Preferences saved successfully!');
-        setTimeout(fetchMatrixFrame, 400);
+      const { ok, data } = await postJson('/api/settings', payload);
+      if (ok) {
+        formDirty = false;
+        showToast(data.saved_to_env === false ? 'Applied (no .env file to save to)' : 'Preferences saved');
+      } else if (data.errors) {
+        const [field, msg] = Object.entries(data.errors)[0];
+        showToast(`${field.replace(/_/g, ' ')} ${msg}`);
+      } else {
+        showToast('Failed to save settings.');
       }
     } catch (err) {
       showToast('Failed to save settings.');
     }
   });
 
-  // Initial Load & Intervals
+  // ---------- Start ----------
   fetchStatus();
-  fetchMatrixFrame();
-
-  setInterval(fetchStatus, 2500);
-  setInterval(fetchMatrixFrame, 3000);
+  connectStream();
 });

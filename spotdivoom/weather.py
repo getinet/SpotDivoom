@@ -3,11 +3,20 @@ Weather service and pixel icon rendering using free Open-Meteo API.
 Requires no API keys. Auto-detects location via IP or uses config values.
 """
 
+import datetime
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 import requests
 from PIL import Image, ImageDraw
+
+
+@dataclass
+class HourForecast:
+    hour: datetime.datetime
+    temperature: int
+    weather_code: int
+    is_day: bool
 
 
 @dataclass
@@ -17,6 +26,9 @@ class WeatherInfo:
     is_day: bool
     unit: str  # "°F" or "°C"
     city: str
+    hourly: list[HourForecast] = field(default_factory=list)
+    sunrise: Optional[datetime.datetime] = None
+    sunset: Optional[datetime.datetime] = None
 
 
 class WeatherService:
@@ -53,10 +65,14 @@ class WeatherService:
             pass
         return False
 
-    def get_weather(self) -> Optional[WeatherInfo]:
+    def get_weather(self, unit: Optional[str] = None) -> Optional[WeatherInfo]:
         """
-        Fetches current weather from Open-Meteo, using cached data if fresh.
+        Fetches current weather (plus the next hours and today's sunrise/sunset) from Open-Meteo,
+        using cached data if fresh. Passing a different `unit` refetches right away.
         """
+        if unit and unit.upper() != self.unit:
+            self.unit = unit.upper()
+            self._cached_weather = None
         now = time.time()
         if self._cached_weather and (now - self._last_fetch_time) < self.cache_ttl:
             return self._cached_weather
@@ -72,6 +88,8 @@ class WeatherService:
                 f"https://api.open-meteo.com/v1/forecast"
                 f"?latitude={self.lat}&longitude={self.lon}"
                 f"&current=temperature_2m,weather_code,is_day"
+                f"&hourly=temperature_2m,weather_code,is_day&forecast_hours=13"
+                f"&daily=sunrise,sunset&forecast_days=1&timezone=auto"
                 f"&temperature_unit={temp_unit_param}"
             )
             resp = requests.get(url, timeout=6)
@@ -88,6 +106,9 @@ class WeatherService:
                     is_day=is_day,
                     unit=f"°{self.unit}",
                     city=self.city,
+                    hourly=_parse_hourly(data.get("hourly", {})),
+                    sunrise=_parse_daily_time(data.get("daily", {}), "sunrise"),
+                    sunset=_parse_daily_time(data.get("daily", {}), "sunset"),
                 )
                 self._last_fetch_time = now
                 return self._cached_weather
@@ -95,6 +116,37 @@ class WeatherService:
             pass
 
         return self._cached_weather
+
+
+def _parse_hourly(hourly: dict) -> list[HourForecast]:
+    """
+    Open-Meteo returns parallel arrays in the location's local time; zip them into rows.
+    """
+    try:
+        return [
+            HourForecast(
+                hour=datetime.datetime.fromisoformat(t),
+                temperature=round(temp),
+                weather_code=int(code),
+                is_day=bool(day),
+            )
+            for t, temp, code, day in zip(
+                hourly.get("time", []),
+                hourly.get("temperature_2m", []),
+                hourly.get("weather_code", []),
+                hourly.get("is_day", []),
+            )
+            if temp is not None and code is not None
+        ]
+    except (TypeError, ValueError):
+        return []
+
+
+def _parse_daily_time(daily: dict, key: str) -> Optional[datetime.datetime]:
+    try:
+        return datetime.datetime.fromisoformat(daily[key][0])
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None
 
 
 ICON_SIZE = 11

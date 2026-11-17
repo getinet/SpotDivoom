@@ -25,11 +25,20 @@ _log_lock = threading.Lock()
 _stats_cache: Optional[dict] = None
 _stats_cache_time: float = 0
 
+# Don't log the same track again within this window (e.g. after a brief Spotify outage)
+REPLAY_WINDOW_SECONDS = 600
+_last_logged: dict = {"track_id": None, "time": 0.0}
+
 
 def record_play(track) -> None:
     """
     Appends a track start to the local play log (one JSON object per line).
     """
+    now = time.time()
+    if track.track_id == _last_logged["track_id"] and now - _last_logged["time"] < REPLAY_WINDOW_SECONDS:
+        return
+    _last_logged.update(track_id=track.track_id, time=now)
+
     entry = {
         "track_id": track.track_id,
         "title": track.title,

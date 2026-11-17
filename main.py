@@ -15,9 +15,9 @@ import sys
 
 from spotdivoom.app import SpotDivoomApp, print_banner
 from spotdivoom.config import settings
-from spotdivoom.display import create_blank_image, create_spotify_idle_image
+from spotdivoom.display import create_blank_image, create_logo_idle_image
 from spotdivoom.pixoo import PixooClient
-from spotdivoom.spotify import SpotifyWatcher
+from spotdivoom.spotify import PlaybackUnavailable, SpotifyWatcher
 
 
 def cmd_discover():
@@ -49,7 +49,7 @@ def cmd_test_pixoo():
 
     print(f"[✓] Successfully connected to Pixoo 64 at {client.ip}")
     print("[*] Sending test graphic...")
-    test_img = create_spotify_idle_image()
+    test_img = create_logo_idle_image()
     if client.send_image(test_img):
         print("[✓] Test image successfully sent to your Pixoo 64 display!")
     else:
@@ -69,7 +69,14 @@ def cmd_test_spotify():
         client_secret=settings.spotify_client_secret,
         redirect_uri=settings.spotify_redirect_uri,
     )
-    track = watcher.get_current_track()
+    if not watcher.is_authorized() and not watcher.authorize_interactively():
+        print("[!] Not logged in to Spotify. Run 'python main.py' and log in from the dashboard.")
+        sys.exit(1)
+    try:
+        track = watcher.get_current_track()
+    except PlaybackUnavailable as e:
+        print(f"[!] Spotify request failed: {e}")
+        sys.exit(1)
     if track is None:
         print("[✓] Connected to Spotify, but nothing is currently playing.")
     else:
@@ -91,7 +98,7 @@ def cmd_clear():
 
 
 def cmd_test_idle():
-    from spotdivoom.display import render_idle_cover_with_hud, create_spotify_idle_image
+    from spotdivoom.display import render_idle_cover_with_hud, create_logo_idle_image
     from spotdivoom.weather import WeatherService
     import datetime
 
@@ -113,7 +120,7 @@ def cmd_test_idle():
 
     # 2. Cover image (liked track or Spotify idle)
     cover_img = None
-    cover_title = "Spotify Idle Logo"
+    cover_title = "SpotDivoom logo"
     if settings.has_spotify_credentials():
         try:
             watcher = SpotifyWatcher(
@@ -121,7 +128,7 @@ def cmd_test_idle():
                 client_secret=settings.spotify_client_secret,
                 redirect_uri=settings.spotify_redirect_uri,
             )
-            if watcher.auth_manager.get_cached_token() is not None:
+            if watcher.is_authorized():
                 liked = watcher.get_random_liked_track()
                 if liked:
                     img = watcher.fetch_image(liked.image_url)
@@ -134,7 +141,7 @@ def cmd_test_idle():
             pass
 
     if cover_img is None:
-        cover_img = create_spotify_idle_image()
+        cover_img = create_logo_idle_image()
 
     print(f"[✓] Using background cover: {cover_title}")
 
@@ -145,6 +152,7 @@ def cmd_test_idle():
         use_24h=settings.use_24h_time,
         contrast=settings.enhance_contrast,
         color=settings.enhance_color,
+        position=settings.hud_position,
     )
 
     # 4. Send to Pixoo

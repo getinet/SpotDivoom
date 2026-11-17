@@ -139,6 +139,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--text-main);
   filter: drop-shadow(0 0 14px var(--accent-glow));
 }
 
@@ -1325,5 +1326,166 @@ body {
 @media (max-width: 420px) {
   .stat-tile-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   Spotify login, playback controls, night mode settings
+   ========================================================================== */
+
+.login-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 24px;
+  align-items: start;
+  margin-bottom: 24px;
+  border-left: 3px solid var(--accent-3);
+}
+
+.login-copy h2 {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  margin-bottom: 6px;
+}
+
+.login-copy p,
+.login-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.login-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-left: 1.2em;
+}
+
+.login-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.login-open {
+  width: auto;
+  align-self: flex-start;
+  text-decoration: none;
+}
+
+.login-paste-row {
+  display: flex;
+  gap: 8px;
+}
+
+.login-paste-row .form-input {
+  min-width: 0;
+}
+
+.login-paste-row .action-btn {
+  flex: none;
+}
+
+@media (max-width: 760px) {
+  .login-card {
+    grid-template-columns: 1fr;
+  }
+  .login-paste-row {
+    flex-direction: column;
+  }
+}
+
+.playback-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.control-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-glass);
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.control-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  transform: translateY(-1px);
+}
+
+.control-btn:focus-visible,
+.login-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.control-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.control-btn.control-main {
+  width: 46px;
+  height: 46px;
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+
+.control-btn.control-main:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.control-btn.control-like {
+  margin-left: auto;
+}
+
+.control-btn.control-like[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.control-btn.control-like[aria-pressed="true"] svg {
+  fill: currentColor;
+}
+
+.spotify-note {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.chip-select-group.chip-select-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.chip-option input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.form-fieldset {
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 12px 16px 16px;
+}
+
+.form-fieldset legend {
+  padding: 0 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-btn,
+  .control-btn:hover:not(:disabled) {
+    transition: none;
+    transform: none;
   }
 }

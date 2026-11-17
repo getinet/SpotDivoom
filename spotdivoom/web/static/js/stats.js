@@ -412,5 +412,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Redraw charts in the new look's colors
   document.addEventListener('spotdivoom:theme', () => { if (stats) render(); });
 
+  // Logging in from the dashboard makes the stats available
+  document.addEventListener('spotdivoom:login', () => loadStats(true));
+
   loadStats();
 });

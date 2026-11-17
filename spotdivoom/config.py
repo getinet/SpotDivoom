@@ -21,6 +21,10 @@ else:
     load_dotenv()
 
 
+def _bool(name: str, default: str) -> bool:
+    return os.getenv(name, default).strip().lower() in ("true", "1", "yes")
+
+
 @dataclass
 class Settings:
     # Spotify settings
@@ -41,7 +45,7 @@ class Settings:
     enhance_color: float = float(os.getenv("ENHANCE_COLOR", "1.0"))
 
     # Idle display settings
-    # 'liked_tracks' (cycles covers of liked tracks with time & weather) or 'spotify_logo'
+    # 'liked_tracks' (cycles covers of liked tracks with time & weather) or 'spotify_logo' (the SpotDivoom logo)
     idle_mode: str = os.getenv("IDLE_MODE", "liked_tracks").lower()
     idle_cycle_interval: float = float(os.getenv("IDLE_CYCLE_INTERVAL", "30.0"))
     use_24h_time: bool = os.getenv("USE_24H_TIME", "false").lower() in ("true", "1", "yes")
@@ -49,6 +53,25 @@ class Settings:
     always_show_hud: bool = os.getenv("ALWAYS_SHOW_HUD", "true").lower() in ("true", "1", "yes")
     # Where the time & weather bar sits on the screen: 'bottom' or 'top'
     hud_position: str = "top" if os.getenv("HUD_POSITION", "bottom").strip().lower() == "top" else "bottom"
+    # Tint the temperature and bar edge with a color picked from the album art
+    hud_accent: bool = _bool("HUD_ACCENT", "true")
+    # Thin song-progress line along the bar while a track plays
+    show_progress: bool = _bool("SHOW_PROGRESS", "true")
+    # Scroll the song title across the screen using the Pixoo's own text engine
+    show_title: bool = _bool("SHOW_TITLE", "false")
+
+    # Idle screens to rotate through: 'cover' and/or 'forecast' (comma separated)
+    idle_screens: str = os.getenv("IDLE_SCREENS", "cover").strip().lower() or "cover"
+    # Short cross-fade when the idle cover changes ('fade' or 'none')
+    idle_transition: str = os.getenv("IDLE_TRANSITION", "none").strip().lower()
+    # How many of your most recent Liked Songs the idle screen picks from
+    liked_tracks_limit: int = int(os.getenv("LIKED_TRACKS_LIMIT", "500"))
+
+    # Night mode: 'off', 'dim' (lower brightness), 'clock' (dim clock on black) or 'screen_off'
+    night_mode: str = os.getenv("NIGHT_MODE", "off").strip().lower()
+    night_start: str = os.getenv("NIGHT_START", "23:00").strip()
+    night_end: str = os.getenv("NIGHT_END", "07:00").strip()
+    night_brightness: int = int(os.getenv("NIGHT_BRIGHTNESS", "10"))
 
     # Weather settings
     weather_unit: str = os.getenv("WEATHER_UNIT", "F").upper()  # 'F' or 'C'

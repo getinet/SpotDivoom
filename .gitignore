@@ -22,5 +22,8 @@ listening_log.jsonl
 .DS_Store
 Thumbs.db
 
+# Editor settings
+.vscode/
+
 # Docker data volume (secrets + play log)
 data/
