@@ -1,4 +1,10 @@
-# SpotDivoom 64 🎵 🖼️ ⏱️ 🌐
+<p align="center">
+  <img src="https://github.com/getinet/SpotDivoom/blob/main/design/logo/led-logo.png" alt="Image description" width="128">
+</p>
+
+<h1 align="center">
+  SpotDivoom 64
+</h1>
 
 A compact, high-performance Python application and modern web dashboard that streams the album cover art of your currently playing Spotify track directly to your **Divoom Pixoo 64** LED display over Wi-Fi.
 
